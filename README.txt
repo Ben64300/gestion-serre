@@ -1,25 +1,14 @@
-Gestion Serre — V1
+Gestion Serre — V2
 
-Contenu :
-- index.html : application
+Fichiers :
+- index.html : application V2
 - manifest.json : configuration PWA
-- sw.js : cache hors ligne
+- sw.js : mise à jour/cache hors ligne
+- README.txt : informations
 
-Test immédiat :
-1. Ouvrir index.html dans un navigateur.
-2. Les données sont enregistrées localement dans le navigateur.
+V2 :
+- GrowStreamPro L1120 : 56 chambres, 20 plants/chambre, 1 120 places.
+- GrowStreamPro S1200 : 60 chambres, 20 plants/chambre, 1 200 places.
+- Affectation des cultures aux chambres.
 
-Installation comme vraie PWA :
-- Héberger les 3 fichiers sur un site HTTPS.
-- Ouvrir le site depuis Chrome sur Android.
-- Utiliser “Ajouter à l’écran d’accueil” / “Installer l’application”.
-
-La V1 contient :
-- une serre unique ;
-- plusieurs blocs configurables ;
-- variétés et lots/cultures ;
-- planning ;
-- stocks avec seuils ;
-- ventes ;
-- coûts et marge ;
-- sauvegarde/import JSON.
+Pour GitHub : téléverser les 4 fichiers et remplacer ceux qui portent le même nom.

@@ -122,7 +122,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
   </div>
 
   <div class="card">
-    <h3>À propos de cette V1</h3>
+    <h3>À propos de cette V2</h3>
     <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
   </div>
 </section>
@@ -145,9 +145,8 @@ const KEY='gestion_serre_v1';
 const seed = {
   greenhouse:{id:'g1',name:'Serre principale'},
   blocks:[
-    {id:'b1',name:'Bloc Growstream 1',system:'Growstream',capacity:''},
-    {id:'b2',name:'Bloc Growstream 2',system:'Growstream',capacity:''},
-    {id:'b3',name:'Bloc Growstream 3',system:'Growstream',capacity:''}
+    {id:'b1',name:'GrowStreamPro L1120',system:'GrowStreamPro',capacity:1120,chambers:56,plantsPerChamber:20,chamberLength:4},
+    {id:'b2',name:'GrowStreamPro S1200',system:'GrowStreamPro',capacity:1200,chambers:60,plantsPerChamber:20,chamberLength:4}
   ],
   varieties:[
     ['v1','Chou chinois Atsuko','Chou chinois'],
@@ -187,6 +186,20 @@ const seed = {
 let db;
 try { db = JSON.parse(localStorage.getItem(KEY)) || seed; }
 catch(e){ db = seed; }
+
+
+// Migration V2 : remplace les blocs génériques seulement si aucune culture n'a encore été saisie.
+if (db && Array.isArray(db.blocks)) {
+  const names=db.blocks.map(b=>b.name).sort().join('|');
+  const original=['Bloc Growstream 1','Bloc Growstream 2','Bloc Growstream 3'].sort().join('|');
+  if(names===original && db.blocks.length===3 && (!db.cultures || db.cultures.length===0)){
+    db.blocks=[
+      {id:'b1',name:'GrowStreamPro L1120',system:'GrowStreamPro',capacity:1120,chambers:56,plantsPerChamber:20,chamberLength:4},
+      {id:'b2',name:'GrowStreamPro S1200',system:'GrowStreamPro',capacity:1200,chambers:60,plantsPerChamber:20,chamberLength:4}
+    ];
+    localStorage.setItem(KEY,JSON.stringify(db));
+  }
+}
 
 function save(){ localStorage.setItem(KEY,JSON.stringify(db)); renderAll(); }
 function uid(p){ return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -232,7 +245,7 @@ function renderDash(){
 
 function renderBlocks(){
   document.getElementById('blockList').innerHTML=db.blocks.length
-  ? db.blocks.map(b=>`<div class="item"><b>${esc(b.name)}</b> <span class="pill gray">${esc(b.system||'Système')}</span>${b.capacity?` <span class="pill">${esc(b.capacity)} places</span>`:''}</div>`).join('')
+  ? db.blocks.map(b=>`<div class="item"><b>${esc(b.name)}</b> <span class="pill gray">${esc(b.system||'Système')}</span>${b.chambers?` <span class="pill">${esc(b.chambers)} chambres</span>`:''}${b.capacity?` <span class="pill">${esc(b.capacity)} places</span>`:''}</div>`).join('')
   : '<div class="empty">Aucun bloc.</div>';
 }
 
@@ -261,6 +274,7 @@ function renderCultures(){
       <button class="danger fit" onclick="delCulture('${c.id}')">×</button>
     </div>
     <p><b>${c.qty||0}</b> plants/unités · statut <b>${esc(c.status||'Active')}</b></p>
+    ${c.chambers?`<p><span class="pill">Chambre(s) : ${esc(c.chambers)}</span></p>`:''}
     <p class="small">Semis : ${fmt(c.sowing)||'—'} · Mise en système : ${fmt(c.planting)||'—'} · Récolte prévue : ${fmt(c.harvest)||'—'}</p>
     ${c.notes?`<p class="muted">${esc(c.notes)}</p>`:''}
   </div>`).join('')
@@ -273,6 +287,8 @@ function openCulture(){
   modal(`<h2>Nouvelle culture / lot</h2>
   <label>Variété</label><select id="fvar">${vopts}</select>
   <label>Bloc de système</label><select id="fblock">${bopts}</select>
+  <label>Chambre(s)</label><input id="fchambers" placeholder="ex. 1 à 8, ou 12, 14, 16">
+  <div class="small muted">L1120 : 56 chambres · S1200 : 60 chambres · 20 emplacements par chambre.</div>
   <label>Type de système</label><input id="fsys" placeholder="optionnel si déjà défini dans le bloc">
   <label>Quantité</label><input id="fqty" type="number" min="0" value="0">
   <label>Date de semis</label><input id="fsow" type="date">
@@ -285,7 +301,7 @@ function openCulture(){
 function addCulture(){
   let c={
     id:uid('c'),varietyId:fvar.value,blockId:fblock.value,system:fsys.value.trim(),qty:Number(fqty.value),
-    sowing:fsow.value,planting:fplant.value,harvest:fharv.value,status:fstatus.value,notes:fnote.value.trim()
+    chambers:fchambers.value.trim(),sowing:fsow.value,planting:fplant.value,harvest:fharv.value,status:fstatus.value,notes:fnote.value.trim()
   };
   db.cultures.push(c);
   if(c.sowing) db.tasks.push({id:uid('t'),title:'Semis',date:c.sowing,varietyId:c.varietyId,blockId:c.blockId,done:true});
