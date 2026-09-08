@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#285943">
+<link rel="manifest" href="manifest.json">
+<title>Gestion Serre</title>
+<style>
+:root{
+  --green:#285943;--green2:#3c7a5a;--light:#f4f7f4;--card:#fff;--text:#203027;
+  --muted:#68766e;--border:#dce5df;--danger:#b33a3a;--warn:#a56b00;--accent:#e2efe6;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--light);color:var(--text);padding-bottom:82px}
+header{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;padding:18px 16px 16px;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px #0002}
+header h1{font-size:21px;margin:0 0 4px} header small{opacity:.85}
+main{max-width:1000px;margin:auto;padding:14px}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:10;overflow:auto}
+nav button{flex:1;min-width:74px;border:0;background:#fff;padding:10px 4px 9px;font-size:11px;color:var(--muted);border-radius:0}
+nav button.active{color:var(--green);font-weight:800}
+nav span{display:block;font-size:19px;margin-bottom:2px}
+section{display:none} section.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin:10px 0;box-shadow:0 1px 3px #00000008}
+.metric b{font-size:25px;display:block;line-height:1.15}.metric small{color:var(--muted)}
+h2{font-size:20px;margin:8px 0 12px} h3{font-size:16px;margin:4px 0 8px}
+button,.btn{border:0;border-radius:10px;padding:10px 13px;background:var(--green);color:#fff;font-weight:700;cursor:pointer}
+button.secondary{background:#e7eee9;color:var(--green)} button.danger{background:var(--danger)}
+button.warn{background:#a56b00}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ccd8d0;border-radius:9px;background:#fff;font:inherit}
+textarea{min-height:80px;resize:vertical}
+label{font-size:12px;color:var(--muted);display:block;margin:8px 0 4px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}.row>*{flex:1}.row>.fit{flex:0 0 auto}
+.pill{display:inline-block;background:var(--accent);color:var(--green);border-radius:99px;padding:4px 8px;font-size:12px;margin:2px}
+.pill.gray{background:#edf0ee;color:#58625b}.pill.warn{background:#fff0cf;color:#8a5a00}
+.muted{color:var(--muted)} .dangerText{color:var(--danger);font-weight:700}.warnText{color:var(--warn);font-weight:700}
+.item{padding:11px 0;border-top:1px solid var(--border)}.item:first-child{border-top:0}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:20}
+.modal.open{display:flex}.sheet{background:#fff;width:100%;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}.toolbar button{padding:8px 10px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--border)}
+.small{font-size:12px}.right{text-align:right}
+@media(min-width:700px){
+ .modal{align-items:center}.sheet{max-width:680px;border-radius:18px}
+ .grid{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Gestion Serre</h1>
+  <small>Gestion agricole · 1 serre · plusieurs blocs de systèmes</small>
+</header>
+
+<main>
+<section id="dashboard" class="active">
+  <h2>Tableau de bord</h2>
+  <div class="grid" id="metrics"></div>
+  <div class="card"><h3>Prochaines échéances</h3><div id="upcoming"></div></div>
+  <div class="card"><h3>Alertes stock</h3><div id="alerts"></div></div>
+</section>
+
+<section id="cultures">
+  <div class="row"><h2>Serre & cultures</h2><button class="fit" onclick="openCulture()">＋ Culture</button></div>
+  <div class="card">
+    <h3>Structure de l'exploitation</h3>
+    <p><b>Serre principale</b></p>
+    <p class="muted">Chaque lot de culture est affecté à un bloc de système. Une variété peut être présente dans plusieurs blocs et à plusieurs dates.</p>
+    <div class="toolbar"><button class="secondary" onclick="openBlock()">＋ Ajouter un bloc</button></div>
+    <div id="blockList"></div>
+  </div>
+  <div id="cultureList"></div>
+</section>
+
+<section id="planning">
+  <div class="row"><h2>Planning</h2><button class="fit" onclick="openTask()">＋ Tâche</button></div>
+  <div class="card">
+    <label>Période</label>
+    <select id="planFilter" onchange="renderPlanning()">
+      <option value="all">Toutes les tâches</option>
+      <option value="7">7 prochains jours</option>
+      <option value="30">30 prochains jours</option>
+    </select>
+  </div>
+  <div id="planningList"></div>
+</section>
+
+<section id="stock">
+  <div class="row"><h2>Stock</h2><button class="fit" onclick="openStock()">＋ Article</button></div>
+  <div id="stockList"></div>
+</section>
+
+<section id="sales">
+  <div class="row"><h2>Ventes & marges</h2><button class="fit" onclick="openSale()">＋ Vente</button></div>
+  <div class="grid3" id="salesMetrics"></div>
+  <div class="toolbar">
+    <button class="secondary" onclick="openCost()">＋ Ajouter un coût</button>
+  </div>
+  <div id="salesList"></div>
+  <div id="costList"></div>
+</section>
+
+<section id="more">
+  <h2>Outils</h2>
+  <div class="card">
+    <h3>Variétés</h3>
+    <div id="varietyList"></div>
+    <button onclick="openVariety()">＋ Ajouter une variété</button>
+  </div>
+
+  <div class="card">
+    <h3>Sauvegarde</h3>
+    <p class="muted">Les données sont conservées localement sur cet appareil. Fais une sauvegarde régulièrement.</p>
+    <div class="toolbar">
+      <button onclick="exportData()">Exporter JSON</button>
+      <button class="secondary" onclick="document.getElementById('importFile').click()">Importer JSON</button>
+    </div>
+    <input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+
+  <div class="card">
+    <h3>À propos de cette V1</h3>
+    <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
+  </div>
+</section>
+</main>
+
+<nav>
+  <button class="active" onclick="show('dashboard',this)"><span>⌂</span>Accueil</button>
+  <button onclick="show('cultures',this)"><span>🌱</span>Cultures</button>
+  <button onclick="show('planning',this)"><span>📅</span>Planning</button>
+  <button onclick="show('stock',this)"><span>📦</span>Stock</button>
+  <button onclick="show('sales',this)"><span>€</span>Ventes</button>
+  <button onclick="show('more',this)"><span>⚙</span>Plus</button>
+</nav>
+
+<div id="modal" class="modal" onclick="if(event.target.id==='modal')closeModal()"><div class="sheet" id="sheet"></div></div>
+
+<script>
+const KEY='gestion_serre_v1';
+
+const seed = {
+  greenhouse:{id:'g1',name:'Serre principale'},
+  blocks:[
+    {id:'b1',name:'Bloc Growstream 1',system:'Growstream',capacity:''},
+    {id:'b2',name:'Bloc Growstream 2',system:'Growstream',capacity:''},
+    {id:'b3',name:'Bloc Growstream 3',system:'Growstream',capacity:''}
+  ],
+  varieties:[
+    ['v1','Chou chinois Atsuko','Chou chinois'],
+    ['v2','Cresson de Belle Isle','Cresson'],
+    ['v3','Cresson de fontaine','Cresson'],
+    ['v4','Cresson alénois','Cresson'],
+    ['v5','Épinard aquatique (Kangkong)','Légume feuille'],
+    ['v6','Moutarde japonaise','Moutarde'],
+    ['v7','Cerfeuil commun','Cerfeuil'],
+    ['v8','Cerfeuil d’hiver de Bruxelles','Cerfeuil'],
+    ['v9','Shiso rouge','Shiso'],
+    ['v10','Pak choï de Shanghai','Pak choï'],
+    ['v11','Haricots nains','Haricot'],
+    ['v12','Tomate Rose de Berne','Tomate'],
+    ['v13','Myrtille Goldtraube','Myrtille'],
+    ['v14','Myrtille Patriot','Myrtille'],
+    ['v15','Moskvitch','Tomate'],
+    ['v16','Copper Currant','Tomate cerise'],
+    ['v17','Datterini','Tomate cerise'],
+    ['v18','Muchacha','Tomate cerise'],
+    ['v19','Blondkopfchen','Tomate cerise'],
+    ['v20','Purple Bumblebee','Tomate cerise'],
+    ['v21','Tomate noire','Tomate'],
+    ['v22','Mirabelle blanche','Tomate cerise']
+  ].map(x=>({id:x[0],name:x[1],species:x[2]})),
+  cultures:[],
+  tasks:[],
+  stock:[
+    {id:'s1',name:'Engrais hydroponique',unit:'L',qty:0,min:5,cost:0},
+    {id:'s2',name:'Semences',unit:'sachet',qty:0,min:5,cost:0},
+    {id:'s3',name:'Pots paniers',unit:'pièce',qty:0,min:20,cost:0}
+  ],
+  sales:[],
+  costs:[]
+};
+
+let db;
+try { db = JSON.parse(localStorage.getItem(KEY)) || seed; }
+catch(e){ db = seed; }
+
+function save(){ localStorage.setItem(KEY,JSON.stringify(db)); renderAll(); }
+function uid(p){ return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function money(n){ return Number(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR'}); }
+function fmt(d){ return d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR'):''; }
+function varietyName(id){ return db.varieties.find(v=>v.id===id)?.name||'—'; }
+function blockName(id){ return db.blocks.find(b=>b.id===id)?.name||'Bloc non renseigné'; }
+function show(id,btn){
+  document.querySelectorAll('section').forEach(x=>x.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active'); renderAll();
+}
+function modal(html){ document.getElementById('sheet').innerHTML=html; document.getElementById('modal').classList.add('open'); }
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+function renderAll(){ renderDash();renderBlocks();renderCultures();renderPlanning();renderStock();renderSales();renderVarieties(); }
+
+function renderDash(){
+  let now=new Date(), in7=new Date(now); in7.setDate(now.getDate()+7);
+  let due=db.tasks.filter(t=>!t.done && new Date(t.date+'T23:59:00')>=now && new Date(t.date+'T23:59:00')<=in7).length;
+  let month=now.toISOString().slice(0,7);
+  let revenue=db.sales.filter(s=>s.date.startsWith(month)).reduce((a,s)=>a+Number(s.total),0);
+  let costs=db.costs.filter(c=>c.date.startsWith(month)).reduce((a,c)=>a+Number(c.amount),0);
+  document.getElementById('metrics').innerHTML=[
+    ['🌱','Cultures actives',db.cultures.filter(c=>c.status!=='Terminée').length],
+    ['🧱','Blocs',db.blocks.length],
+    ['📅','Tâches à venir',due],
+    ['📈','Marge du mois',money(revenue-costs)]
+  ].map(x=>`<div class="card metric"><span>${x[0]}</span><b>${x[2]}</b><small>${x[1]}</small></div>`).join('');
+
+  let upcoming=db.tasks.filter(t=>!t.done).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
+  document.getElementById('upcoming').innerHTML=upcoming.length
+    ? upcoming.map(t=>`<div class="item"><b>${fmt(t.date)}</b> · ${esc(t.title)}<br><span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}</span></div>`).join('')
+    : '<div class="empty">Aucune échéance.</div>';
+
+  let low=db.stock.filter(s=>Number(s.qty)<=Number(s.min));
+  document.getElementById('alerts').innerHTML=low.length
+    ? low.map(s=>`<div class="item"><span class="dangerText">⚠ ${esc(s.name)}</span> · ${s.qty} ${esc(s.unit)} (seuil ${s.min})</div>`).join('')
+    : '<div class="empty">Aucune alerte.</div>';
+}
+
+function renderBlocks(){
+  document.getElementById('blockList').innerHTML=db.blocks.length
+  ? db.blocks.map(b=>`<div class="item"><b>${esc(b.name)}</b> <span class="pill gray">${esc(b.system||'Système')}</span>${b.capacity?` <span class="pill">${esc(b.capacity)} places</span>`:''}</div>`).join('')
+  : '<div class="empty">Aucun bloc.</div>';
+}
+
+function openBlock(){
+  modal(`<h2>Nouveau bloc</h2>
+  <label>Nom du bloc</label><input id="bname" placeholder="ex. Bloc Growstream 4">
+  <label>Type de système</label><input id="bsystem" placeholder="Growstream, NFT...">
+  <label>Capacité / nombre de places</label><input id="bcap" type="number" min="0">
+  <br><button onclick="addBlock()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function addBlock(){
+  db.blocks.push({id:uid('b'),name:bname.value.trim()||'Nouveau bloc',system:bsystem.value.trim(),capacity:bcap.value});
+  closeModal(); save();
+}
+
+function renderCultures(){
+  let el=document.getElementById('cultureList');
+  el.innerHTML=db.cultures.length
+  ? db.cultures.map(c=>`<div class="card">
+    <div class="row">
+      <div>
+        <h3>${esc(varietyName(c.varietyId))}</h3>
+        <span class="pill">${esc(blockName(c.blockId))}</span>
+        <span class="pill gray">${esc(c.system||db.blocks.find(b=>b.id===c.blockId)?.system||'Système')}</span>
+      </div>
+      <button class="danger fit" onclick="delCulture('${c.id}')">×</button>
+    </div>
+    <p><b>${c.qty||0}</b> plants/unités · statut <b>${esc(c.status||'Active')}</b></p>
+    <p class="small">Semis : ${fmt(c.sowing)||'—'} · Mise en système : ${fmt(c.planting)||'—'} · Récolte prévue : ${fmt(c.harvest)||'—'}</p>
+    ${c.notes?`<p class="muted">${esc(c.notes)}</p>`:''}
+  </div>`).join('')
+  : '<div class="empty">Aucune culture. Ajoute ton premier lot.</div>';
+}
+
+function openCulture(){
+  let vopts=db.varieties.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+  modal(`<h2>Nouvelle culture / lot</h2>
+  <label>Variété</label><select id="fvar">${vopts}</select>
+  <label>Bloc de système</label><select id="fblock">${bopts}</select>
+  <label>Type de système</label><input id="fsys" placeholder="optionnel si déjà défini dans le bloc">
+  <label>Quantité</label><input id="fqty" type="number" min="0" value="0">
+  <label>Date de semis</label><input id="fsow" type="date">
+  <label>Date de plantation / mise en système</label><input id="fplant" type="date">
+  <label>Date de récolte prévue</label><input id="fharv" type="date">
+  <label>Statut</label><select id="fstatus"><option>Active</option><option>En attente</option><option>Terminée</option></select>
+  <label>Observations</label><textarea id="fnote" placeholder="Croissance, problème sanitaire, EC, rendement, etc."></textarea>
+  <br><button onclick="addCulture()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function addCulture(){
+  let c={
+    id:uid('c'),varietyId:fvar.value,blockId:fblock.value,system:fsys.value.trim(),qty:Number(fqty.value),
+    sowing:fsow.value,planting:fplant.value,harvest:fharv.value,status:fstatus.value,notes:fnote.value.trim()
+  };
+  db.cultures.push(c);
+  if(c.sowing) db.tasks.push({id:uid('t'),title:'Semis',date:c.sowing,varietyId:c.varietyId,blockId:c.blockId,done:true});
+  if(c.planting) db.tasks.push({id:uid('t'),title:'Mise en système / plantation',date:c.planting,varietyId:c.varietyId,blockId:c.blockId,done:false});
+  if(c.harvest) db.tasks.push({id:uid('t'),title:'Récolte prévue',date:c.harvest,varietyId:c.varietyId,blockId:c.blockId,done:false});
+  closeModal(); save();
+}
+function delCulture(id){ if(confirm('Supprimer cette culture ?')){ db.cultures=db.cultures.filter(c=>c.id!==id); save(); } }
+
+function openTask(){
+  let vopts=db.varieties.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+  modal(`<h2>Nouvelle tâche</h2>
+  <label>Titre</label><input id="ttitle" placeholder="ex. semis, récolte, nettoyage...">
+  <label>Date</label><input id="tdate" type="date" value="${new Date().toISOString().slice(0,10)}">
+  <label>Variété</label><select id="tvar"><option value="">—</option>${vopts}</select>
+  <label>Bloc</label><select id="tblock"><option value="">—</option>${bopts}</select>
+  <br><button onclick="addTask()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function addTask(){ db.tasks.push({id:uid('t'),title:ttitle.value.trim()||'Tâche',date:tdate.value,varietyId:tvar.value,blockId:tblock.value,done:false}); closeModal(); save(); }
+function doneTask(id){ let t=db.tasks.find(x=>x.id===id); if(t)t.done=true; save(); }
+
+function renderPlanning(){
+  let filter=document.getElementById('planFilter')?.value||'all';
+  let today=new Date(); today.setHours(0,0,0,0);
+  let arr=db.tasks.filter(t=>!t.done).sort((a,b)=>a.date.localeCompare(b.date));
+  if(filter!=='all'){
+    let max=new Date(today); max.setDate(max.getDate()+Number(filter));
+    arr=arr.filter(t=>{let d=new Date(t.date+'T12:00');return d>=today&&d<=max});
+  }
+  document.getElementById('planningList').innerHTML=arr.length
+  ? arr.map(t=>`<div class="card"><div class="row"><div><b>${fmt(t.date)} · ${esc(t.title)}</b><br><span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}</span></div><button class="fit" onclick="doneTask('${t.id}')">✓</button></div></div>`).join('')
+  : '<div class="empty">Aucune tâche.</div>';
+}
+
+function renderStock(){
+  document.getElementById('stockList').innerHTML=db.stock.length
+  ? db.stock.map(s=>`<div class="card"><div class="row"><div><h3>${esc(s.name)}</h3><span class="${Number(s.qty)<=Number(s.min)?'dangerText':''}">${s.qty} ${esc(s.unit)}</span> · seuil ${s.min}</div><button class="fit" onclick="moveStock('${s.id}')">Mouvement</button></div></div>`).join('')
+  : '<div class="empty">Aucun article de stock.</div>';
+}
+function openStock(){
+  modal(`<h2>Nouvel article de stock</h2>
+  <label>Article</label><input id="sname">
+  <label>Unité</label><input id="sunit" placeholder="L, kg, sachet, pièce...">
+  <label>Quantité initiale</label><input id="sq" type="number" value="0">
+  <label>Seuil d'alerte</label><input id="smin" type="number" value="0">
+  <label>Coût unitaire</label><input id="scost" type="number" step=".01" value="0">
+  <br><button onclick="addStock()">Enregistrer</button>`);
+}
+function addStock(){
+  db.stock.push({id:uid('s'),name:sname.value.trim(),unit:sunit.value.trim(),qty:Number(sq.value),min:Number(smin.value),cost:Number(scost.value)});
+  closeModal();save();
+}
+function moveStock(id){
+  let s=db.stock.find(x=>x.id===id);
+  modal(`<h2>Mouvement : ${esc(s.name)}</h2>
+  <p>Stock actuel : <b>${s.qty} ${esc(s.unit)}</b></p>
+  <label>Type</label><select id="mtype"><option value="in">Entrée</option><option value="out">Sortie</option></select>
+  <label>Quantité</label><input id="mq" type="number" min="0" step=".01">
+  <br><button onclick="applyMove('${id}')">Valider</button>`);
+}
+function applyMove(id){
+  let s=db.stock.find(x=>x.id===id),q=Number(mq.value||0);
+  s.qty += mtype.value==='in'?q:-q; if(s.qty<0)s.qty=0;
+  closeModal();save();
+}
+
+function renderSales(){
+  let month=new Date().toISOString().slice(0,7);
+  let rev=db.sales.filter(s=>s.date.startsWith(month)).reduce((a,s)=>a+Number(s.total),0);
+  let costs=db.costs.filter(c=>c.date.startsWith(month)).reduce((a,c)=>a+Number(c.amount),0);
+  document.getElementById('salesMetrics').innerHTML=
+    `<div class="card metric"><b>${money(rev)}</b><small>CA du mois</small></div>
+     <div class="card metric"><b>${money(costs)}</b><small>Coûts du mois</small></div>
+     <div class="card metric"><b>${money(rev-costs)}</b><small>Marge</small></div>`;
+
+  document.getElementById('salesList').innerHTML=db.sales.length
+  ? `<div class="card"><h3>Dernières ventes</h3>${db.sales.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(s=>`<div class="item"><b>${fmt(s.date)} · ${esc(s.product)}</b><br>${s.qty} ${esc(s.unit)} × ${money(s.unitPrice)} = <b>${money(s.total)}</b><br><span class="muted">${esc(s.customer||'Client non renseigné')} · ${esc(varietyName(s.varietyId))} · ${esc(blockName(s.blockId))}</span></div>`).join('')}</div>`
+  : '<div class="empty">Aucune vente.</div>';
+
+  document.getElementById('costList').innerHTML=db.costs.length
+  ? `<div class="card"><h3>Derniers coûts</h3>${db.costs.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(c=>`<div class="item"><b>${fmt(c.date)} · ${esc(c.label)}</b> — ${money(c.amount)}<br><span class="muted">${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))}</span></div>`).join('')}</div>`
+  : '';
+}
+function openSale(){
+  let vopts=db.varieties.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+  modal(`<h2>Nouvelle vente</h2>
+  <label>Date</label><input id="sdate" type="date" value="${new Date().toISOString().slice(0,10)}">
+  <label>Produit</label><input id="sprod" placeholder="ex. tomate, basilic, bouquet...">
+  <label>Variété</label><select id="svar">${vopts}</select>
+  <label>Bloc</label><select id="sblock"><option value="">—</option>${bopts}</select>
+  <label>Client</label><input id="scustomer">
+  <div class="row">
+    <div><label>Quantité</label><input id="sqty" type="number" step=".01" value="1"></div>
+    <div><label>Unité</label><input id="sunit2" value="kg"></div>
+    <div><label>Prix unitaire</label><input id="suprice" type="number" step=".01" value="0"></div>
+  </div>
+  <br><button onclick="addSale()">Enregistrer</button>`);
+}
+function addSale(){
+  let q=Number(sqty.value),p=Number(suprice.value);
+  db.sales.push({id:uid('sale'),date:sdate.value,product:sprod.value.trim(),varietyId:svar.value,blockId:sblock.value,customer:scustomer.value.trim(),qty:q,unit:sunit2.value.trim(),unitPrice:p,total:q*p});
+  closeModal();save();
+}
+function openCost(){
+  let vopts=db.varieties.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+  modal(`<h2>Ajouter un coût</h2>
+  <label>Date</label><input id="cdate" type="date" value="${new Date().toISOString().slice(0,10)}">
+  <label>Libellé</label><input id="clabel" placeholder="engrais, semences, emballage...">
+  <label>Montant (€)</label><input id="camount" type="number" step=".01" value="0">
+  <label>Variété</label><select id="cvar"><option value="">—</option>${vopts}</select>
+  <label>Bloc</label><select id="cblock"><option value="">—</option>${bopts}</select>
+  <br><button onclick="addCost()">Enregistrer</button>`);
+}
+function addCost(){
+  db.costs.push({id:uid('cost'),date:cdate.value,label:clabel.value.trim(),amount:Number(camount.value),varietyId:cvar.value,blockId:cblock.value});
+  closeModal();save();
+}
+
+function renderVarieties(){
+  document.getElementById('varietyList').innerHTML=db.varieties.length
+  ? db.varieties.map(v=>`<span class="pill">${esc(v.name)}</span>`).join('')
+  : '<div class="empty">Aucune variété.</div>';
+}
+function openVariety(){
+  modal(`<h2>Ajouter une variété</h2><label>Nom</label><input id="vname"><label>Espèce / catégorie</label><input id="vspecies"><br><button onclick="addVariety()">Ajouter</button>`);
+}
+function addVariety(){
+  db.varieties.push({id:uid('v'),name:vname.value.trim(),species:vspecies.value.trim()});
+  closeModal();save();
+}
+
+function exportData(){
+  let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  let a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='gestion-serre-sauvegarde.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importData(e){
+  let f=e.target.files[0]; if(!f)return;
+  let r=new FileReader();
+  r.onload=()=>{
+    try{
+      let x=JSON.parse(r.result);
+      if(!x.varieties||!x.cultures||!x.blocks) throw Error();
+      db=x;save();alert('Sauvegarde importée.');
+    }catch(_){alert('Fichier de sauvegarde invalide.')}
+  };
+  r.readAsText(f);
+}
+
+renderAll();
+</script>
+<script>
+if('serviceWorker' in navigator && location.protocol!=='file:'){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
