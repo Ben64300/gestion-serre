@@ -1,8 +1,8 @@
-Gestion Serre V9 — classement espèces/catégories puis variétés
-
-Nouveautés :
-- Dans les outils / variétés, classement alphabétique d'abord par espèce/catégorie.
-- À l'intérieur de chaque espèce/catégorie, classement alphabétique des variétés.
-- Les nouvelles variétés se rangent automatiquement au bon endroit.
-- Les listes déroulantes affichent maintenant : « Espèce/Catégorie — Variété ».
-- Toutes les fonctions de la V8 sont conservées.
+Gestion Serre V10
+Couleurs des chambres :
+- clair : libre
+- jaune : réservée / culture En attente
+- vert : partiellement occupée
+- rouge : complète
+Les réservations en attente comptent dans les places prévues afin d'éviter une double affectation.
+Toutes les fonctions de la V9 sont conservées.

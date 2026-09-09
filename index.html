@@ -52,6 +52,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 .chamberColumn{display:flex;flex-direction:column;gap:7px}
 button.partialGreen{background:#3c7a5a;color:#fff}
 
+button.waitingYellow{background:#e3b341;color:#3d3000}
 </style>
 </head>
 <body>
@@ -127,7 +128,7 @@ button.partialGreen{background:#3c7a5a;color:#fff}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V9</h3>
+    <h3>À propos de cette V10</h3>
     <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
   </div>
 </section>
@@ -273,7 +274,7 @@ function renderDash(){
   let revenue=db.sales.filter(s=>s.date.startsWith(month)).reduce((a,s)=>a+Number(s.total),0);
   let costs=db.costs.filter(c=>c.date.startsWith(month)).reduce((a,c)=>a+Number(c.amount),0);
   document.getElementById('metrics').innerHTML=[
-    ['🌱','Cultures actives',db.cultures.filter(c=>c.status!=='Terminée').length],
+    ['🌱','Cultures actives',db.cultures.filter(c=>c.status!=='Terminée'&&c.status!=='En attente').length],
     ['🧱','Blocs',db.blocks.length],
     ['📅','Tâches à venir',due],
     ['📈','Marge du mois',money(revenue-costs)]
@@ -326,9 +327,9 @@ function renderChamberMap(){
     const secondStart=firstColCount+1;
 
     const buttonHtml=(n)=>{
-      let used=chamberUsed(b.id,n),free=20-used;
-      let stateClass = used===0 ? 'secondary' : (free===0 ? 'danger' : 'partialGreen');
-      let label=used===0 ? 'Libre' : (free===0 ? 'Complète' : `${free} libres`);
+      let used=chamberUsed(b.id,n),free=20-used,waiting=chamberWaiting(b.id,n);
+      let stateClass = waiting ? 'waitingYellow' : (used===0 ? 'secondary' : (free===0 ? 'danger' : 'partialGreen'));
+      let label = waiting ? (used===0?'En attente':`${free} libres · attente`) : (used===0?'Libre':(free===0?'Complète':`${free} libres`));
       return `<button class="${stateClass}" style="padding:8px 4px" onclick="openChamber('${b.id}',${n})">
         <b>${chamberCode(b.id,n)}</b><br>
         <span style="font-size:11px">${used}/20 · ${label}</span>
@@ -744,11 +745,20 @@ function allocationsOf(c){
   return [];
 }
 function cultureChambers(c){ return allocationsOf(c).map(a=>Number(a.chamberNumber)); }
+
+function chamberWaiting(blockId,n){
+ return (db.cultures||[]).some(c=>c.blockId===blockId&&c.status==='En attente'&&allocationsOf(c).some(a=>Number(a.chamberNumber)===Number(n)));
+}
+function chamberReserved(blockId,n,excludeCultureId=''){
+ return (db.cultures||[]).filter(c=>c.id!==excludeCultureId&&c.blockId===blockId&&c.status==='En attente')
+ .reduce((sum,c)=>sum+allocationsOf(c).filter(a=>Number(a.chamberNumber)===Number(n)).reduce((s,a)=>s+Number(a.qty||0),0),0);
+}
+
 function chamberUsed(blockId,n,excludeCultureId=''){
   return (db.cultures||[]).filter(c=>c.id!==excludeCultureId&&c.blockId===blockId&&c.status!=='Terminée')
     .reduce((sum,c)=>sum+allocationsOf(c).filter(a=>Number(a.chamberNumber)===Number(n)).reduce((s,a)=>s+Number(a.qty||0),0),0);
 }
-function chamberRemaining(blockId,n,excludeCultureId=''){ return Math.max(0,20-chamberUsed(blockId,n,excludeCultureId)); }
+function chamberRemaining(blockId,n,excludeCultureId=''){ return Math.max(0,20-chamberUsed(blockId,n,excludeCultureId)-chamberReserved(blockId,n,excludeCultureId)); }
 function chamberOccupants(blockId,n){
   return (db.cultures||[]).filter(c=>c.blockId===blockId&&c.status!=='Terminée')
     .map(c=>({culture:c,allocation:allocationsOf(c).find(a=>Number(a.chamberNumber)===Number(n))}))
@@ -764,9 +774,9 @@ function renderChamberMap(){
     const secondStart=firstColCount+1;
 
     const buttonHtml=(n)=>{
-      let used=chamberUsed(b.id,n),free=20-used;
-      let stateClass = used===0 ? 'secondary' : (free===0 ? 'danger' : 'partialGreen');
-      let label=used===0 ? 'Libre' : (free===0 ? 'Complète' : `${free} libres`);
+      let used=chamberUsed(b.id,n),free=20-used,waiting=chamberWaiting(b.id,n);
+      let stateClass = waiting ? 'waitingYellow' : (used===0 ? 'secondary' : (free===0 ? 'danger' : 'partialGreen'));
+      let label = waiting ? (used===0?'En attente':`${free} libres · attente`) : (used===0?'Libre':(free===0?'Complète':`${free} libres`));
       return `<button class="${stateClass}" style="padding:8px 4px" onclick="openChamber('${b.id}',${n})">
         <b>${chamberCode(b.id,n)}</b><br>
         <span style="font-size:11px">${used}/20 · ${label}</span>
@@ -788,7 +798,7 @@ function renderChamberMap(){
 
 function openChamber(b,n){
  let occ=chamberOccupants(b,n),code=chamberCode(b,n),used=chamberUsed(b,n),free=20-used;
- let lines=occ.length?occ.map(x=>`<div class="item"><b>${esc(varietyName(x.culture.varietyId))}</b> — ${x.allocation.qty} plant(s)
+ let lines=occ.length?occ.map(x=>`<div class="item"><b>${esc(varietyName(x.culture.varietyId))}</b> — ${x.allocation.qty} plant(s)${x.culture.status==='En attente'?' · <b>En attente</b>':''}
  <br><span class="small muted">${fmt(x.culture.planting)||'Date non renseignée'}</span>
  <div class="toolbar" style="margin-top:6px"><button class="secondary" onclick="openEditCulture('${x.culture.id}')">Modifier</button>
  <button class="secondary" onclick="releaseOneChamber('${x.culture.id}',${n})">Libérer cette affectation</button></div></div>`).join('')
