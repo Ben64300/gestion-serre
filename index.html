@@ -70,7 +70,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
     <p><b>Serre principale</b></p>
     <p class="muted">Chaque lot de culture est affecté à un bloc de système. Une variété peut être présente dans plusieurs blocs et à plusieurs dates.</p>
     <div class="toolbar"><button class="secondary" onclick="openBlock()">＋ Ajouter un bloc</button></div>
-    <div id="blockList"></div>
+    <div id="blockList"></div><div class="card"><h3>Plan des chambres</h3><p class="muted small">L01 à L56 · S01 à S60. Appuie sur une chambre pour voir son état.</p><div id="chamberMap"></div></div>
   </div>
   <div id="cultureList"></div>
 </section>
@@ -122,7 +122,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
   </div>
 
   <div class="card">
-    <h3>À propos de cette V3</h3>
+    <h3>À propos de cette V4</h3>
     <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
   </div>
 </section>
@@ -201,16 +201,6 @@ if (db && Array.isArray(db.blocks)) {
   }
 }
 
-
-if (db) {
-  if (!Array.isArray(db.stockMovements)) db.stockMovements=[];
-  if (Array.isArray(db.stock)) db.stock=db.stock.map(s=>Object.assign({
-    category:'',supplier:'',purchaseDate:'',lot:'',varietyId:'',
-    germinationRate:'',germinationDate:'',notes:''
-  },s));
-  localStorage.setItem(KEY,JSON.stringify(db));
-}
-
 function save(){ localStorage.setItem(KEY,JSON.stringify(db)); renderAll(); }
 function uid(p){ return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
@@ -227,7 +217,7 @@ function show(id,btn){
 function modal(html){ document.getElementById('sheet').innerHTML=html; document.getElementById('modal').classList.add('open'); }
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }
 
-function renderAll(){ renderDash();renderBlocks();renderCultures();renderPlanning();renderStock();renderSales();renderVarieties(); }
+function renderAll(){ renderDash();renderBlocks();renderChamberMap();renderCultures();renderPlanning();renderStock();renderSales();renderVarieties(); }
 
 function renderDash(){
   let now=new Date(), in7=new Date(now); in7.setDate(now.getDate()+7);
@@ -271,6 +261,26 @@ function addBlock(){
   closeModal(); save();
 }
 
+
+function chamberPrefix(id){return id==='b1'?'L':id==='b2'?'S':'C'}
+function chamberCode(id,n){return chamberPrefix(id)+String(n).padStart(2,'0')}
+function cultureChambers(c){
+ if(Array.isArray(c.chamberNumbers))return c.chamberNumbers.map(Number);
+ let a=[];(c.chambers||'').split(',').forEach(x=>{x=x.trim();let m=x.match(/^(\d+)\s*(?:à|-)\s*(\d+)$/);if(m){for(let i=+m[1];i<=+m[2];i++)a.push(i)}else if(/^\d+$/.test(x))a.push(+x)});return [...new Set(a)]
+}
+function occupant(b,n){return db.cultures.find(c=>c.blockId===b&&c.status!=='Terminée'&&cultureChambers(c).includes(n))}
+function renderChamberMap(){
+ let e=document.getElementById('chamberMap');if(!e)return;
+ e.innerHTML=db.blocks.filter(b=>b.chambers).map(b=>`<div class="item"><h3>${esc(b.name)}</h3><div>${Array.from({length:b.chambers},(_,i)=>{let n=i+1,c=occupant(b.id,n);return `<button class="${c?'':'secondary'} fit" style="margin:3px;min-width:62px" onclick="openChamber('${b.id}',${n})"><b>${chamberCode(b.id,n)}</b><br><span class="small">${c?esc(varietyName(c.varietyId)):'Libre'}</span></button>`}).join('')}</div></div>`).join('')
+}
+function openChamber(b,n){let c=occupant(b,n),code=chamberCode(b,n);modal(c?`<h2>${code}</h2><p><b>${esc(varietyName(c.varietyId))}</b></p><p>${c.qty||0} plants/unités · ${esc(c.status)}</p><p>Mise en système : ${fmt(c.planting)||'—'}</p><button class="secondary" onclick="closeModal()">Fermer</button>`:`<h2>${code}</h2><p>Chambre libre.</p><button class="secondary" onclick="closeModal()">Fermer</button>`)}
+function chamberSelector(bid){
+ let b=db.blocks.find(x=>x.id===bid);if(!b)return '';
+ let used=new Set();db.cultures.filter(c=>c.blockId===bid&&c.status!=='Terminée').forEach(c=>cultureChambers(c).forEach(n=>used.add(n)));
+ return `<label>Chambre(s) de culture</label><select id="fchambers" multiple size="8">${Array.from({length:b.chambers},(_,i)=>{let n=i+1,u=used.has(n);return `<option value="${n}" ${u?'disabled':''}>${chamberCode(bid,n)}${u?' — occupée':''}</option>`}).join('')}</select><div class="small muted">Plusieurs chambres peuvent être sélectionnées. Les chambres occupées sont bloquées.</div>`
+}
+function refreshChambers(){let h=document.getElementById('chamberSelectorHost');if(h)h.innerHTML=chamberSelector(fblock.value)}
+
 function renderCultures(){
   let el=document.getElementById('cultureList');
   el.innerHTML=db.cultures.length
@@ -296,9 +306,8 @@ function openCulture(){
   let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>Nouvelle culture / lot</h2>
   <label>Variété</label><select id="fvar">${vopts}</select>
-  <label>Bloc de système</label><select id="fblock">${bopts}</select>
-  <label>Chambre(s)</label><input id="fchambers" placeholder="ex. 1 à 8, ou 12, 14, 16">
-  <div class="small muted">L1120 : 56 chambres · S1200 : 60 chambres · 20 emplacements par chambre.</div>
+  <label>Bloc de système</label><select id="fblock" onchange="refreshChambers()">${bopts}</select>
+  <div id="chamberSelectorHost"></div>
   <label>Type de système</label><input id="fsys" placeholder="optionnel si déjà défini dans le bloc">
   <label>Quantité</label><input id="fqty" type="number" min="0" value="0">
   <label>Date de semis</label><input id="fsow" type="date">
@@ -306,12 +315,12 @@ function openCulture(){
   <label>Date de récolte prévue</label><input id="fharv" type="date">
   <label>Statut</label><select id="fstatus"><option>Active</option><option>En attente</option><option>Terminée</option></select>
   <label>Observations</label><textarea id="fnote" placeholder="Croissance, problème sanitaire, EC, rendement, etc."></textarea>
-  <br><button onclick="addCulture()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+  <br><button onclick="addCulture()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`); refreshChambers();
 }
 function addCulture(){
   let c={
     id:uid('c'),varietyId:fvar.value,blockId:fblock.value,system:fsys.value.trim(),qty:Number(fqty.value),
-    chambers:fchambers.value.trim(),sowing:fsow.value,planting:fplant.value,harvest:fharv.value,status:fstatus.value,notes:fnote.value.trim()
+    chamberNumbers:Array.from(fchambers.selectedOptions).map(o=>Number(o.value)),chambers:Array.from(fchambers.selectedOptions).map(o=>o.value).join(','),sowing:fsow.value,planting:fplant.value,harvest:fharv.value,status:fstatus.value,notes:fnote.value.trim()
   };
   db.cultures.push(c);
   if(c.sowing) db.tasks.push({id:uid('t'),title:'Semis',date:c.sowing,varietyId:c.varietyId,blockId:c.blockId,done:true});
@@ -349,72 +358,33 @@ function renderPlanning(){
 
 function renderStock(){
   document.getElementById('stockList').innerHTML=db.stock.length
-  ? db.stock.map(s=>`<div class="card">
-      <div class="row"><div>
-        <h3>${esc(s.name)}</h3>
-        <span class="pill gray">${esc(s.category||'Non classé')}</span>
-        <span class="${Number(s.qty)<=Number(s.min)?'dangerText':''}">${s.qty} ${esc(s.unit)}</span> · seuil ${s.min}
-      </div><div class="fit toolbar">
-        <button onclick="moveStock('${s.id}')">Mouvement</button>
-        <button class="secondary" onclick="openEditStock('${s.id}')">Modifier</button>
-        <button class="danger" onclick="deleteStock('${s.id}')">Supprimer</button>
-      </div></div>
-      <div class="small muted" style="margin-top:8px">
-        ${s.varietyId?`Variété : ${esc(varietyName(s.varietyId))} · `:''}
-        ${s.supplier?`Fournisseur : ${esc(s.supplier)} · `:''}
-        ${s.lot?`Lot : ${esc(s.lot)} · `:''}
-        ${s.purchaseDate?`Achat : ${fmt(s.purchaseDate)} · `:''}
-        ${s.germinationRate!==''?`Germination : ${esc(s.germinationRate)} %`:''}
-        ${s.germinationDate?` · date du taux/test : ${fmt(s.germinationDate)}`:''}
-      </div>
-      ${s.notes?`<p class="muted">${esc(s.notes)}</p>`:''}
-      <details><summary>Historique des mouvements</summary>${renderMovementHistory(s.id)}</details>
-    </div>`).join('')
+  ? db.stock.map(s=>`<div class="card"><div class="row"><div><h3>${esc(s.name)}</h3><span class="${Number(s.qty)<=Number(s.min)?'dangerText':''}">${s.qty} ${esc(s.unit)}</span> · seuil ${s.min}</div><button class="fit" onclick="moveStock('${s.id}')">Mouvement</button></div></div>`).join('')
   : '<div class="empty">Aucun article de stock.</div>';
 }
-function renderMovementHistory(stockId){
-  let arr=(db.stockMovements||[]).filter(m=>m.stockId===stockId).sort((a,b)=>b.date.localeCompare(a.date));
-  return arr.length?arr.map(m=>`<div class="item small"><b>${fmt(m.date)}</b> · ${m.type==='in'?'Entrée':'Sortie'} ${m.qty} · ${esc(m.reason||'')}</div>`).join(''):'<div class="empty">Aucun mouvement.</div>';
+function openStock(){
+  modal(`<h2>Nouvel article de stock</h2>
+  <label>Article</label><input id="sname">
+  <label>Unité</label><input id="sunit" placeholder="L, kg, sachet, pièce...">
+  <label>Quantité initiale</label><input id="sq" type="number" value="0">
+  <label>Seuil d'alerte</label><input id="smin" type="number" value="0">
+  <label>Coût unitaire</label><input id="scost" type="number" step=".01" value="0">
+  <br><button onclick="addStock()">Enregistrer</button>`);
 }
-function stockFields(s={}){
-  const vopts=db.varieties.map(v=>`<option value="${v.id}" ${s.varietyId===v.id?'selected':''}>${esc(v.name)}</option>`).join('');
-  return `<label>Nom de l'article</label><input id="sname" value="${esc(s.name||'')}">
-  <label>Catégorie</label><select id="scategory">${['Semences','Engrais','Substrat','Pots / paniers','Emballages','Consommables','Autre'].map(x=>`<option ${s.category===x?'selected':''}>${x}</option>`).join('')}</select>
-  <label>Variété liée</label><select id="svariety"><option value="">—</option>${vopts}</select>
-  <div class="row"><div><label>Quantité</label><input id="sq" type="number" step=".01" value="${s.qty??0}"></div><div><label>Unité</label><input id="sunit" value="${esc(s.unit||'')}" placeholder="L, kg, g, graines, sachet..."></div></div>
-  <label>Seuil d'alerte</label><input id="smin" type="number" step=".01" value="${s.min??0}">
-  <label>Coût unitaire (€)</label><input id="scost" type="number" step=".01" value="${s.cost??0}">
-  <label>Fournisseur</label><input id="ssupplier" value="${esc(s.supplier||'')}">
-  <label>Date d'achat</label><input id="spurchase" type="date" value="${s.purchaseDate||''}">
-  <label>N° de lot</label><input id="slot" value="${esc(s.lot||'')}">
-  <div class="row"><div><label>Taux de germination (%)</label><input id="sgermrate" type="number" min="0" max="100" step=".1" value="${s.germinationRate??''}"></div>
-  <div><label>Date du taux / test de germination</label><input id="sgermdate" type="date" value="${s.germinationDate||''}"></div></div>
-  <div class="small muted">Permet de conserver le taux indiqué par le fournisseur avec sa date, même sans date limite.</div>
-  <label>Notes</label><textarea id="snotes">${esc(s.notes||'')}</textarea>`;
+function addStock(){
+  db.stock.push({id:uid('s'),name:sname.value.trim(),unit:sunit.value.trim(),qty:Number(sq.value),min:Number(smin.value),cost:Number(scost.value)});
+  closeModal();save();
 }
-function readStockFields(){
-  return {name:sname.value.trim(),category:scategory.value,varietyId:svariety.value,qty:Number(sq.value||0),unit:sunit.value.trim(),min:Number(smin.value||0),cost:Number(scost.value||0),supplier:ssupplier.value.trim(),purchaseDate:spurchase.value,lot:slot.value.trim(),germinationRate:sgermrate.value===''?'':Number(sgermrate.value),germinationDate:sgermdate.value,notes:snotes.value.trim()};
-}
-function openStock(){modal(`<h2>Nouvel article de stock</h2>${stockFields()}<br><button onclick="addStock()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`)}
-function addStock(){db.stock.push(Object.assign({id:uid('s')},readStockFields()));closeModal();save()}
-function openEditStock(id){let s=db.stock.find(x=>x.id===id);if(!s)return;modal(`<h2>Modifier le stock</h2>${stockFields(s)}<br><button onclick="saveStockEdit('${id}')">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`)}
-function saveStockEdit(id){let s=db.stock.find(x=>x.id===id);if(!s)return;Object.assign(s,readStockFields());closeModal();save()}
-function deleteStock(id){if(confirm('Supprimer cet article et son historique ?')){db.stock=db.stock.filter(s=>s.id!==id);db.stockMovements=(db.stockMovements||[]).filter(m=>m.stockId!==id);save()}}
 function moveStock(id){
   let s=db.stock.find(x=>x.id===id);
-  modal(`<h2>Mouvement : ${esc(s.name)}</h2><p>Stock actuel : <b>${s.qty} ${esc(s.unit)}</b></p>
-  <label>Date</label><input id="mdate" type="date" value="${new Date().toISOString().slice(0,10)}">
+  modal(`<h2>Mouvement : ${esc(s.name)}</h2>
+  <p>Stock actuel : <b>${s.qty} ${esc(s.unit)}</b></p>
   <label>Type</label><select id="mtype"><option value="in">Entrée</option><option value="out">Sortie</option></select>
   <label>Quantité</label><input id="mq" type="number" min="0" step=".01">
-  <label>Motif / remarque</label><input id="mreason" placeholder="Achat, semis, utilisation...">
-  <br><button onclick="applyMove('${id}')">Valider</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+  <br><button onclick="applyMove('${id}')">Valider</button>`);
 }
 function applyMove(id){
-  let s=db.stock.find(x=>x.id===id),q=Number(mq.value||0);if(!s||q<=0)return;
-  if(mtype.value==='out'&&q>s.qty){alert('Stock insuffisant.');return;}
-  s.qty+=mtype.value==='in'?q:-q;
-  if(!Array.isArray(db.stockMovements))db.stockMovements=[];
-  db.stockMovements.push({id:uid('m'),stockId:id,date:mdate.value,type:mtype.value,qty:q,reason:mreason.value.trim()});
+  let s=db.stock.find(x=>x.id===id),q=Number(mq.value||0);
+  s.qty += mtype.value==='in'?q:-q; if(s.qty<0)s.qty=0;
   closeModal();save();
 }
 
@@ -474,12 +444,7 @@ function addCost(){
 
 function renderVarieties(){
   document.getElementById('varietyList').innerHTML=db.varieties.length
-  ? db.varieties.map(v=>`<div class="item"><div class="row">
-      <div><b>${esc(v.name)}</b><br><span class="muted">${esc(v.species||'')}</span></div>
-      <div class="fit toolbar">
-        <button class="secondary" onclick="openEditVariety('${v.id}')">Modifier</button>
-        <button class="danger" onclick="deleteVariety('${v.id}')">Supprimer</button>
-      </div></div></div>`).join('')
+  ? db.varieties.map(v=>`<span class="pill">${esc(v.name)}</span>`).join('')
   : '<div class="empty">Aucune variété.</div>';
 }
 function openVariety(){
@@ -488,19 +453,6 @@ function openVariety(){
 function addVariety(){
   db.varieties.push({id:uid('v'),name:vname.value.trim(),species:vspecies.value.trim()});
   closeModal();save();
-}
-function openEditVariety(id){
-  let v=db.varieties.find(x=>x.id===id); if(!v)return;
-  modal(`<h2>Modifier la variété</h2><label>Nom</label><input id="evname" value="${esc(v.name)}"><label>Espèce / catégorie</label><input id="evspecies" value="${esc(v.species||'')}"><br><button onclick="saveVarietyEdit('${id}')">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
-}
-function saveVarietyEdit(id){
-  let v=db.varieties.find(x=>x.id===id); if(!v)return;
-  v.name=evname.value.trim(); v.species=evspecies.value.trim(); closeModal();save();
-}
-function deleteVariety(id){
-  const used=(db.cultures||[]).some(c=>c.varietyId===id)||(db.sales||[]).some(s=>s.varietyId===id)||(db.stock||[]).some(s=>s.varietyId===id);
-  if(used){alert('Cette variété est déjà utilisée. Retire d’abord les éléments liés.');return;}
-  if(confirm('Supprimer cette variété ?')){db.varieties=db.varieties.filter(v=>v.id!==id);save();}
 }
 
 function exportData(){
