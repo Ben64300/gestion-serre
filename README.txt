@@ -1,11 +1,20 @@
-Gestion Serre V7 — occupation partielle des chambres
+Gestion Serre V8 — Plans GrowStream + tri alphabétique
 
-- Chaque chambre GrowStream possède 20 emplacements.
-- Affichage 0/20, 10/20, 20/20 et nombre de places libres.
-- Plusieurs cultures peuvent partager une même chambre tant que le total ne dépasse pas 20.
-- Affectation précise : ex. L01 = 20 plants, L02 = 10 plants.
-- Correction possible du GrowStream, de la chambre et du nombre de plants.
-- Libération d'une affectation ou fin complète d'une culture.
-- Navigation Android de la V6 conservée.
-- Gestion avancée du stock et des variétés restaurée/conservée : catégories, fournisseur, lot, taux/date de germination, seuils, mouvements, modification/suppression.
-- Les données utilisent toujours la même clé localStorage.
+Nouveautés :
+- GrowStreamPro S1200 :
+  colonne 1 = S01 à S30
+  colonne 2 = S31 à S60
+- GrowStreamPro L1120 :
+  colonne 1 = L01 à L28
+  colonne 2 = L29 à L56
+- Couleurs :
+  chambre libre = gris/vert clair
+  chambre partiellement occupée = vert
+  chambre complète = rouge
+- Les variétés sont automatiquement affichées par ordre alphabétique.
+- Toute nouvelle variété ajoutée prend automatiquement sa place dans l'ordre alphabétique.
+- Les listes déroulantes de variétés sont également triées alphabétiquement.
+- Toutes les fonctions des versions précédentes sont conservées :
+  occupation partielle des chambres, modification des affectations,
+  navigation Android, stock avancé, mouvements, fournisseurs, lots,
+  taux/date de germination, seuils d'alerte, modification/suppression des variétés.
