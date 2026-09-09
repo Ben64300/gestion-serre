@@ -1,5 +1,8 @@
-Gestion Serre V4
-Chambres numérotées L01-L56 et S01-S60.
-Sélection multiple des chambres lors de la création d'une culture.
-Chambres occupées bloquées.
-Carte Libre/Occupée avec variété.
+Gestion Serre V6 — Navigation Android améliorée
+
+Nouveautés :
+- Le bouton Retour d'Android revient maintenant à l'écran précédent de l'application au lieu de fermer immédiatement l'application.
+- La dernière rubrique ouverte est mémorisée.
+- Exemple : Cultures → bouton Retour → Tableau de bord.
+- La navigation du menu reste inchangée.
+- Les données existantes restent dans le même stockage local.
