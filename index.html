@@ -127,7 +127,7 @@ button.partialGreen{background:#3c7a5a;color:#fff}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V8</h3>
+    <h3>À propos de cette V9</h3>
     <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
   </div>
 </section>
@@ -368,7 +368,7 @@ function openChamber(b,n){
 
 function openEditCulture(id){
  let c=db.cultures.find(x=>x.id===id); if(!c)return;
- let vopts=sortedVarieties().map(v=>`<option value="${v.id}" ${v.id===c.varietyId?'selected':''}>${esc(v.name)}</option>`).join('');
+ let vopts=sortedVarieties().map(v=>`<option value="${v.id}" ${v.id===c.varietyId?'selected':''}>${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
  let bopts=db.blocks.map(b=>`<option value="${b.id}" ${b.id===c.blockId?'selected':''}>${esc(b.name)}</option>`).join('');
  modal(`<h2>Modifier la culture</h2>
  <label>Variété</label><select id="evar">${vopts}</select>
@@ -460,7 +460,7 @@ function renderCultures(){
 }
 
 function openCulture(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
   let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>Nouvelle culture / lot</h2>
   <label>Variété</label><select id="fvar">${vopts}</select>
@@ -489,7 +489,7 @@ function addCulture(){
 function delCulture(id){ if(confirm('Supprimer cette culture ?')){ db.cultures=db.cultures.filter(c=>c.id!==id); save(); } }
 
 function openTask(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
   let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>Nouvelle tâche</h2>
   <label>Titre</label><input id="ttitle" placeholder="ex. semis, récolte, nettoyage...">
@@ -603,7 +603,7 @@ function renderSales(){
   : '';
 }
 function openSale(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
   let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>Nouvelle vente</h2>
   <label>Date</label><input id="sdate" type="date" value="${new Date().toISOString().slice(0,10)}">
@@ -624,7 +624,7 @@ function addSale(){
   closeModal();save();
 }
 function openCost(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
   let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>Ajouter un coût</h2>
   <label>Date</label><input id="cdate" type="date" value="${new Date().toISOString().slice(0,10)}">
@@ -641,19 +641,45 @@ function addCost(){
 
 
 function sortedVarieties(){
-  return [...db.varieties].sort((a,b)=>
-    (a.name||'').localeCompare((b.name||''),'fr',{sensitivity:'base'})
-  );
+  return [...db.varieties].sort((a,b)=>{
+    const sa=(a.species||'Sans catégorie');
+    const sb=(b.species||'Sans catégorie');
+    const speciesCmp=sa.localeCompare(sb,'fr',{sensitivity:'base'});
+    if(speciesCmp!==0) return speciesCmp;
+    return (a.name||'').localeCompare((b.name||''),'fr',{sensitivity:'base'});
+  });
+}
+function groupedVarieties(){
+  const groups={};
+  sortedVarieties().forEach(v=>{
+    const k=(v.species||'Sans catégorie').trim()||'Sans catégorie';
+    if(!groups[k]) groups[k]=[];
+    groups[k].push(v);
+  });
+  return Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0],'fr',{sensitivity:'base'}));
 }
 
 function renderVarieties(){
-  document.getElementById('varietyList').innerHTML=db.varieties.length
-  ? sortedVarieties().map(v=>`<div class="item"><div class="row">
-      <div><b>${esc(v.name)}</b><br><span class="muted">${esc(v.species||'')}</span></div>
-      <div class="fit toolbar">
-        <button class="secondary" onclick="openEditVariety('${v.id}')">Modifier</button>
-        <button class="danger" onclick="deleteVariety('${v.id}')">Supprimer</button>
-      </div></div></div>`).join('')
+  let el=document.getElementById('varietyList');
+  if(!el)return;
+  const groups=groupedVarieties();
+  el.innerHTML=groups.length ? groups.map(([species,vars])=>`
+    <div class="card">
+      <h3>${esc(species)}</h3>
+      ${vars.map(v=>`
+        <div class="item">
+          <div class="row">
+            <div>
+              <b>${esc(v.name)}</b>
+              <div class="small muted">${esc(v.species||'Sans catégorie')}</div>
+            </div>
+            <div>
+              <button class="secondary fit" onclick="openEditVariety('${v.id}')">Modifier</button>
+              <button class="danger fit" onclick="deleteVariety('${v.id}')">×</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`).join('')
   : '<div class="empty">Aucune variété.</div>';
 }
 function openVariety(){
@@ -809,7 +835,7 @@ function refreshNewAllocations(){
  let h=document.getElementById('newAllocHost');if(h)h.innerHTML=allocationRows(fblock.value,[],'');
 }
 function openCulture(){
- let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+ let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
  modal(`<h2>Nouvelle culture / lot</h2>
  <label>Variété</label><select id="fvar">${vopts}</select>
@@ -839,7 +865,7 @@ function addCulture(){
 }
 function openEditCulture(id){
  let c=db.cultures.find(x=>x.id===id);if(!c)return;
- let vopts=sortedVarieties().map(v=>`<option value="${v.id}" ${v.id===c.varietyId?'selected':''}>${esc(v.name)}</option>`).join('');
+ let vopts=sortedVarieties().map(v=>`<option value="${v.id}" ${v.id===c.varietyId?'selected':''}>${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
  let bopts=db.blocks.map(b=>`<option value="${b.id}" ${b.id===c.blockId?'selected':''}>${esc(b.name)}</option>`).join('');
  modal(`<h2>Modifier la culture</h2>
  <label>Variété</label><select id="evar">${vopts}</select>
