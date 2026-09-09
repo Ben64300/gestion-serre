@@ -1,14 +1,13 @@
-Gestion Serre — V2
+Gestion Serre — V3
 
-Fichiers :
-- index.html : application V2
-- manifest.json : configuration PWA
-- sw.js : mise à jour/cache hors ligne
-- README.txt : informations
-
-V2 :
-- GrowStreamPro L1120 : 56 chambres, 20 plants/chambre, 1 120 places.
-- GrowStreamPro S1200 : 60 chambres, 20 plants/chambre, 1 200 places.
-- Affectation des cultures aux chambres.
-
-Pour GitHub : téléverser les 4 fichiers et remplacer ceux qui portent le même nom.
+Nouveautés :
+- Variétés : ajouter, modifier, supprimer.
+- Protection contre la suppression d'une variété déjà utilisée.
+- Stock détaillé par article.
+- Ajouter, modifier, supprimer les articles.
+- Seuil d'alerte modifiable.
+- Catégorie, fournisseur, coût unitaire, date d'achat, lot, notes.
+- Semences : variété liée, taux de germination (%) et date associée au taux/test.
+- Mouvements conservés avec date, type, quantité et motif.
+- Historique des mouvements par article.
+- Migration automatique des données existantes.
