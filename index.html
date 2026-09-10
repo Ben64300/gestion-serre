@@ -53,18 +53,47 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 button.partialGreen{background:#3c7a5a;color:#fff}
 
 button.waitingYellow{background:#e3b341;color:#3d3000}
+
+/* V11 ergonomie */
+.saveStatus{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;opacity:.92}
+.quickActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.quickActions button{width:100%}
+.filterGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.filterGrid .full{grid-column:1/-1}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px;font-size:12px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:12px;height:12px;border-radius:4px;display:inline-block;border:1px solid #0002}
+.legend .free{background:#e7eee9}.legend .wait{background:#e3b341}.legend .partial{background:#3c7a5a}.legend .fullc{background:#b33a3a}
+.undoBar{position:fixed;left:12px;right:12px;bottom:78px;z-index:16;display:none;background:#203027;color:#fff;padding:10px 12px;border-radius:12px;box-shadow:0 5px 18px #0004;align-items:center;gap:10px}
+.undoBar.show{display:flex}.undoBar span{flex:1}.undoBar button{background:#fff;color:#203027;padding:7px 10px}
+.chamberSummary{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}
+.chamberSummary>div{background:#f5f7f5;border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center}
+.chamberSummary b{display:block;font-size:18px}
+.actionGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+@media(max-width:430px){.filterGrid{grid-template-columns:1fr}.filterGrid .full{grid-column:auto}}
+
 </style>
 </head>
 <body>
 <header>
   <h1>Gestion Serre</h1>
-  <small>Gestion agricole · 1 serre · plusieurs blocs de systèmes</small>
+  <small>Gestion agricole · 1 serre · plusieurs blocs de systèmes</small><div id="saveIndicator" class="saveStatus">✓ Prêt</div>
 </header>
 
 <main>
 <section id="dashboard" class="active">
   <h2>Tableau de bord</h2>
   <div class="grid" id="metrics"></div>
+  <div class="card">
+    <h3>Actions rapides</h3>
+    <div class="quickActions">
+      <button onclick="openCulture()">＋ Nouvelle culture</button>
+      <button class="secondary" onclick="openReservation()">🟨 Réserver une chambre</button>
+      <button class="secondary" onclick="quickStockMove()">📦 Mouvement de stock</button>
+      <button class="secondary" onclick="goToPlan()">▦ Voir le plan</button>
+    </div>
+  </div>
+  <div class="card"><h3>Occupation des GrowStream</h3><div id="occupancySummary"></div></div>
   <div class="card"><h3>Prochaines échéances</h3><div id="upcoming"></div></div>
   <div class="card"><h3>Alertes stock</h3><div id="alerts"></div></div>
 </section>
@@ -76,7 +105,20 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <p><b>Serre principale</b></p>
     <p class="muted">Chaque lot de culture est affecté à un bloc de système. Une variété peut être présente dans plusieurs blocs et à plusieurs dates.</p>
     <div class="toolbar"><button class="secondary" onclick="openBlock()">＋ Ajouter un bloc</button></div>
-    <div id="blockList"></div><div class="card"><h3>Plan des chambres</h3><p class="muted small">L01 à L56 · S01 à S60. Appuie sur une chambre pour voir son état.</p><div id="chamberMap"></div></div>
+    <div id="blockList"></div><div class="card"><h3>Plan des chambres</h3><p class="muted small">L01 à L56 · S01 à S60. Appuie sur une chambre pour agir directement.</p><div class="legend"><span><i class="free"></i>Libre</span><span><i class="wait"></i>En attente</span><span><i class="partial"></i>Partielle</span><span><i class="fullc"></i>Complète</span></div><div id="chamberMap"></div></div>
+  </div>
+  <div class="card">
+    <h3>Rechercher / filtrer les cultures</h3>
+    <div class="filterGrid">
+      <div class="full"><input id="cultureSearch" placeholder="Rechercher une variété, une espèce ou une chambre…" oninput="renderCultures()"></div>
+      <div><select id="cultureStatusFilter" onchange="renderCultures()">
+        <option value="all">Tous les statuts</option>
+        <option value="Active">Actives</option>
+        <option value="En attente">En attente</option>
+        <option value="Terminée">Terminées</option>
+      </select></div>
+      <div><select id="cultureBlockFilter" onchange="renderCultures()"><option value="all">Tous les GrowStream</option></select></div>
+    </div>
   </div>
   <div id="cultureList"></div>
 </section>
@@ -128,7 +170,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V10</h3>
+    <h3>À propos de cette V11 Consolidée</h3>
     <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
   </div>
 </section>
@@ -143,381 +185,999 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   <button onclick="show('more',this)"><span>⚙</span>Plus</button>
 </nav>
 
+<div id="undoBar" class="undoBar"><span id="undoText">Modification enregistrée.</span><button onclick="undoLastChange()">Annuler</button></div>
+
 <div id="modal" class="modal" onclick="if(event.target.id==='modal')closeModal()"><div class="sheet" id="sheet"></div></div>
 
 <script>
-const KEY='gestion_serre_v1';
+'use strict';
 
-const NAV_KEY='gestion_serre_current_view';
+/* =========================================================
+   GESTION SERRE — V11 CONSOLIDÉE
+   Base propre pour les évolutions futures.
+   Sections :
+   1. Configuration / données
+   2. Migration / persistance
+   3. Navigation / interface
+   4. Tableau de bord
+   5. GrowStream / chambres / cultures
+   6. Planning
+   7. Stock
+   8. Ventes / coûts
+   9. Variétés
+   10. Sauvegarde
+   ========================================================= */
 
-function activateView(id,btn){
-  document.querySelectorAll('section').forEach(x=>x.classList.remove('active'));
-  const target=document.getElementById(id);
-  if(target) target.classList.add('active');
+// ---------- 1. CONFIGURATION / DONNÉES ----------
+const APP_VERSION = 11;
+const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
+const LEGACY_KEY = 'en_o_des_cretes_v1';
+const NAV_KEY = 'gestion_serre_current_view';
+const UNDO_KEY = 'gestion_serre_v11_undo';
+const SAVE_TIME_KEY = 'gestion_serre_v11_saved_at';
 
-  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  else {
-    const b=[...document.querySelectorAll('nav button')].find(x=>(x.getAttribute('onclick')||'').includes(`show('${id}'`));
-    if(b) b.classList.add('active');
-  }
-  localStorage.setItem(NAV_KEY,id);
-  renderAll();
-}
+const BLOCKS_DEFAULT = [
+  {id:'b1', name:'GrowStreamPro L1120', system:'GrowStreamPro', capacity:1120, chambers:56, plantsPerChamber:20, chamberLength:4, prefix:'L'},
+  {id:'b2', name:'GrowStreamPro S1200', system:'GrowStreamPro', capacity:1200, chambers:60, plantsPerChamber:20, chamberLength:4, prefix:'S'}
+];
 
-function show(id,btn){
-  activateView(id,btn);
-  const state={view:id};
-  if(history.state?.view!==id){
-    history.pushState(state,'',location.href);
-  }
-}
+const DEFAULT_VARIETIES = [
+  ['v1','Chou chinois Atsuko','Chou chinois'],
+  ['v2','Cresson de Belle Isle','Cresson'],
+  ['v3','Cresson de fontaine','Cresson'],
+  ['v4','Cresson alénois','Cresson'],
+  ['v5','Épinard aquatique (Kangkong)','Légume feuille'],
+  ['v6','Moutarde japonaise','Moutarde'],
+  ['v7','Cerfeuil commun','Cerfeuil'],
+  ['v8','Cerfeuil d’hiver de Bruxelles','Cerfeuil'],
+  ['v9','Shiso rouge','Shiso'],
+  ['v10','Pak choï de Shanghai','Pak choï'],
+  ['v11','Haricots nains','Haricot'],
+  ['v12','Tomate Rose de Berne','Tomate'],
+  ['v13','Myrtille Goldtraube','Myrtille'],
+  ['v14','Myrtille Patriot','Myrtille'],
+  ['v15','Moskvitch','Tomate'],
+  ['v16','Copper Currant','Tomate cerise'],
+  ['v17','Datterini','Tomate cerise'],
+  ['v18','Muchacha','Tomate cerise'],
+  ['v19','Blondkopfchen','Tomate cerise'],
+  ['v20','Purple Bumblebee','Tomate cerise'],
+  ['v21','Tomate noire','Tomate'],
+  ['v22','Mirabelle blanche','Tomate cerise']
+].map(x=>({id:x[0],name:x[1],species:x[2]}));
 
-window.addEventListener('popstate',e=>{
-  const id=e.state?.view || localStorage.getItem(NAV_KEY) || 'dashboard';
-  activateView(id,null);
-});
-
-window.addEventListener('DOMContentLoaded',()=>{
-  const saved=localStorage.getItem(NAV_KEY)||'dashboard';
-  history.replaceState({view:saved},'',location.href);
-  activateView(saved,null);
-});
-
-
-const seed = {
+const SEED = {
+  schemaVersion: APP_VERSION,
   greenhouse:{id:'g1',name:'Serre principale'},
-  blocks:[
-    {id:'b1',name:'GrowStreamPro L1120',system:'GrowStreamPro',capacity:1120,chambers:56,plantsPerChamber:20,chamberLength:4},
-    {id:'b2',name:'GrowStreamPro S1200',system:'GrowStreamPro',capacity:1200,chambers:60,plantsPerChamber:20,chamberLength:4}
-  ],
-  varieties:[
-    ['v1','Chou chinois Atsuko','Chou chinois'],
-    ['v2','Cresson de Belle Isle','Cresson'],
-    ['v3','Cresson de fontaine','Cresson'],
-    ['v4','Cresson alénois','Cresson'],
-    ['v5','Épinard aquatique (Kangkong)','Légume feuille'],
-    ['v6','Moutarde japonaise','Moutarde'],
-    ['v7','Cerfeuil commun','Cerfeuil'],
-    ['v8','Cerfeuil d’hiver de Bruxelles','Cerfeuil'],
-    ['v9','Shiso rouge','Shiso'],
-    ['v10','Pak choï de Shanghai','Pak choï'],
-    ['v11','Haricots nains','Haricot'],
-    ['v12','Tomate Rose de Berne','Tomate'],
-    ['v13','Myrtille Goldtraube','Myrtille'],
-    ['v14','Myrtille Patriot','Myrtille'],
-    ['v15','Moskvitch','Tomate'],
-    ['v16','Copper Currant','Tomate cerise'],
-    ['v17','Datterini','Tomate cerise'],
-    ['v18','Muchacha','Tomate cerise'],
-    ['v19','Blondkopfchen','Tomate cerise'],
-    ['v20','Purple Bumblebee','Tomate cerise'],
-    ['v21','Tomate noire','Tomate'],
-    ['v22','Mirabelle blanche','Tomate cerise']
-  ].map(x=>({id:x[0],name:x[1],species:x[2]})),
+  blocks: BLOCKS_DEFAULT,
+  varieties: DEFAULT_VARIETIES,
   cultures:[],
+  chamberHistory:[],
   tasks:[],
   stock:[
-    {id:'s1',name:'Engrais hydroponique',unit:'L',qty:0,min:5,cost:0},
-    {id:'s2',name:'Semences',unit:'sachet',qty:0,min:5,cost:0},
-    {id:'s3',name:'Pots paniers',unit:'pièce',qty:0,min:20,cost:0}
+    {id:'s1',name:'Engrais hydroponique',category:'Engrais',unit:'L',qty:0,min:5,cost:0,supplier:'',purchaseDate:'',lot:'',varietyId:'',germinationRate:'',germinationDate:'',notes:''},
+    {id:'s2',name:'Semences',category:'Semences',unit:'sachet',qty:0,min:5,cost:0,supplier:'',purchaseDate:'',lot:'',varietyId:'',germinationRate:'',germinationDate:'',notes:''},
+    {id:'s3',name:'Pots paniers',category:'Pots / paniers',unit:'pièce',qty:0,min:20,cost:0,supplier:'',purchaseDate:'',lot:'',varietyId:'',germinationRate:'',germinationDate:'',notes:''}
   ],
+  stockMovements:[],
   sales:[],
   costs:[]
 };
 
-let db;
-try { db = JSON.parse(localStorage.getItem(KEY)) || seed; }
-catch(e){ db = seed; }
+let db = null;
+let undoTimer = null;
 
+// ---------- 2. OUTILS GÉNÉRAUX ----------
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
+function uid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(value){
+  return String(value ?? '').replace(/[&<>"']/g, c=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  }[c]));
+}
+function money(n){ return Number(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR'}); }
+function fmt(date){
+  if(!date) return '';
+  const d = new Date(date + 'T12:00:00');
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR');
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function byText(a,b){ return String(a||'').localeCompare(String(b||''),'fr',{sensitivity:'base'}); }
+function getEl(id){ return document.getElementById(id); }
+function varietyName(id){ return db.varieties.find(v=>v.id===id)?.name || '—'; }
+function blockName(id){ return db.blocks.find(b=>b.id===id)?.name || 'Bloc non renseigné'; }
+function blockById(id){ return db.blocks.find(b=>b.id===id); }
+function placesPerChamber(blockId){ return Number(blockById(blockId)?.plantsPerChamber || 20); }
+function blockPrefix(blockId){
+  const b=blockById(blockId);
+  if(b?.prefix) return b.prefix;
+  if(blockId==='b1') return 'L';
+  if(blockId==='b2') return 'S';
+  return 'C';
+}
+function chamberCode(blockId,n){ return blockPrefix(blockId)+String(Number(n)).padStart(2,'0'); }
 
-// Migration V2 : remplace les blocs génériques seulement si aucune culture n'a encore été saisie.
-if (db && Array.isArray(db.blocks)) {
-  const names=db.blocks.map(b=>b.name).sort().join('|');
-  const original=['Bloc Growstream 1','Bloc Growstream 2','Bloc Growstream 3'].sort().join('|');
-  if(names===original && db.blocks.length===3 && (!db.cultures || db.cultures.length===0)){
-    db.blocks=[
-      {id:'b1',name:'GrowStreamPro L1120',system:'GrowStreamPro',capacity:1120,chambers:56,plantsPerChamber:20,chamberLength:4},
-      {id:'b2',name:'GrowStreamPro S1200',system:'GrowStreamPro',capacity:1200,chambers:60,plantsPerChamber:20,chamberLength:4}
-    ];
-    localStorage.setItem(KEY,JSON.stringify(db));
+// ---------- 3. MIGRATION / PERSISTANCE ----------
+function parseLegacyChambers(culture){
+  if(Array.isArray(culture?.chamberNumbers)){
+    return [...new Set(culture.chamberNumbers.map(Number).filter(Number.isFinite))];
   }
+  const out=[];
+  String(culture?.chambers||'').split(',').forEach(raw=>{
+    const x=raw.trim();
+    let m=x.match(/^(\d+)\s*(?:à|-)\s*(\d+)$/i);
+    if(m){
+      let a=Number(m[1]), b=Number(m[2]);
+      if(a>b) [a,b]=[b,a];
+      for(let n=a;n<=b;n++) out.push(n);
+    }else if(/^\d+$/.test(x)){
+      out.push(Number(x));
+    }
+  });
+  return [...new Set(out)];
 }
 
+function migrateCulture(c){
+  c = Object.assign({
+    id:uid('c'), varietyId:'', blockId:'b1', system:'GrowStreamPro',
+    qty:0, sowing:'', planting:'', harvest:'', endDate:'',
+    status:'Active', notes:''
+  }, c || {});
 
-if (db) {
-  if (!Array.isArray(db.stockMovements)) db.stockMovements=[];
-  if (Array.isArray(db.stock)) db.stock=db.stock.map(s=>Object.assign({
-    category:'',supplier:'',purchaseDate:'',lot:'',varietyId:'',
-    germinationRate:'',germinationDate:'',notes:''
+  if(!['Active','En attente','Terminée'].includes(c.status)) c.status='Active';
+
+  const block=blockById(c.blockId) || BLOCKS_DEFAULT.find(b=>b.id===c.blockId);
+  const maxCh=Number(block?.chambers||0);
+  const cap=Number(block?.plantsPerChamber||20);
+
+  if(!Array.isArray(c.allocations) || !c.allocations.length){
+    const nums=parseLegacyChambers(c).filter(n=>!maxCh || (n>=1&&n<=maxCh));
+    let remaining=Math.max(0,Number(c.qty||0));
+    c.allocations=nums.map((n,i)=>{
+      const left=nums.length-i;
+      let q=remaining>0 ? Math.min(cap,remaining) : 0;
+      if(remaining>0 && left>1 && remaining<left) q=1;
+      remaining=Math.max(0,remaining-q);
+      return {chamberNumber:n,qty:q};
+    }).filter(a=>a.qty>0);
+  }else{
+    c.allocations=c.allocations.map(a=>({
+      chamberNumber:Number(a.chamberNumber),
+      qty:Math.max(0,Number(a.qty||0))
+    })).filter(a=>a.chamberNumber>=1 && (!maxCh || a.chamberNumber<=maxCh) && a.qty>0);
+  }
+
+  c.chamberNumbers=[...new Set(c.allocations.map(a=>a.chamberNumber))];
+  c.chambers=c.chamberNumbers.join(',');
+  c.qty=c.allocations.reduce((s,a)=>s+Number(a.qty||0),0);
+  if(c.status==='Terminée' && !c.endDate) c.endDate=c.harvest||'';
+  return c;
+}
+
+function migrateData(raw){
+  const x = raw && typeof raw==='object' ? clone(raw) : clone(SEED);
+
+  x.schemaVersion = APP_VERSION;
+  x.greenhouse = x.greenhouse || clone(SEED.greenhouse);
+  x.blocks = Array.isArray(x.blocks) ? x.blocks : clone(BLOCKS_DEFAULT);
+
+  const genericNames=['Bloc Growstream 1','Bloc Growstream 2','Bloc Growstream 3'];
+  if(
+    x.blocks.length===3 &&
+    x.blocks.every(b=>genericNames.includes(b.name)) &&
+    (!Array.isArray(x.cultures) || x.cultures.length===0)
+  ){
+    x.blocks=clone(BLOCKS_DEFAULT);
+  }
+
+  // Complète les 2 GrowStream connus sans écraser les blocs personnalisés.
+  x.blocks=x.blocks.map(b=>{
+    const def=BLOCKS_DEFAULT.find(d=>d.id===b.id);
+    return Object.assign({},def||{},b);
+  });
+
+  x.varieties = Array.isArray(x.varieties) ? x.varieties : clone(DEFAULT_VARIETIES);
+  x.cultures = Array.isArray(x.cultures) ? x.cultures : [];
+  x.tasks = Array.isArray(x.tasks) ? x.tasks : [];
+  x.stock = Array.isArray(x.stock) ? x.stock : [];
+  x.stockMovements = Array.isArray(x.stockMovements) ? x.stockMovements : [];
+  x.sales = Array.isArray(x.sales) ? x.sales : [];
+  x.costs = Array.isArray(x.costs) ? x.costs : [];
+  x.chamberHistory = Array.isArray(x.chamberHistory) ? x.chamberHistory : [];
+
+  db=x; // nécessaire pour blockById pendant la migration des cultures
+  x.cultures=x.cultures.map(migrateCulture);
+
+  x.stock=x.stock.map(s=>Object.assign({
+    id:uid('s'),name:'',category:'',supplier:'',purchaseDate:'',lot:'',
+    varietyId:'',germinationRate:'',germinationDate:'',notes:'',
+    unit:'',qty:0,min:0,cost:0
   },s));
+
+  return x;
+}
+
+function loadData(){
+  let raw=null;
+  try{
+    raw=JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY) || 'null');
+  }catch(_){ raw=null; }
+  db=migrateData(raw || SEED);
   localStorage.setItem(KEY,JSON.stringify(db));
 }
 
-function save(){ localStorage.setItem(KEY,JSON.stringify(db)); renderAll(); }
-function uid(p){ return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function esc(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
-function money(n){ return Number(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR'}); }
-function fmt(d){ return d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR'):''; }
-function varietyName(id){ return db.varieties.find(v=>v.id===id)?.name||'—'; }
-function blockName(id){ return db.blocks.find(b=>b.id===id)?.name||'Bloc non renseigné'; }
+function persist({message='Modification enregistrée',undo=true,render=true}={}){
+  if(undo){
+    const previous=localStorage.getItem(KEY);
+    if(previous) localStorage.setItem(UNDO_KEY,previous);
+  }
+  db.schemaVersion=APP_VERSION;
+  localStorage.setItem(KEY,JSON.stringify(db));
+  localStorage.setItem(SAVE_TIME_KEY,new Date().toISOString());
+  if(render) renderAll();
+  updateSaveIndicator();
+  if(undo) showUndo(message);
+}
 
-function modal(html){ document.getElementById('sheet').innerHTML=html; document.getElementById('modal').classList.add('open'); }
-function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+function undoLastChange(){
+  const previous=localStorage.getItem(UNDO_KEY);
+  if(!previous){ alert('Aucune modification récente à annuler.'); return; }
+  try{
+    const current=localStorage.getItem(KEY);
+    db=migrateData(JSON.parse(previous));
+    localStorage.setItem(KEY,JSON.stringify(db));
+    if(current) localStorage.setItem(UNDO_KEY,current);
+    localStorage.setItem(SAVE_TIME_KEY,new Date().toISOString());
+    renderAll();
+    updateSaveIndicator();
+    getEl('undoBar')?.classList.remove('show');
+  }catch(_){
+    alert("Impossible d'annuler cette modification.");
+  }
+}
 
-function renderAll(){ renderDash();renderBlocks();renderChamberMap();renderCultures();renderPlanning();renderStock();renderSales();renderVarieties(); }
+function showUndo(message){
+  const bar=getEl('undoBar');
+  if(!bar) return;
+  getEl('undoText').textContent=message;
+  bar.classList.add('show');
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(()=>bar.classList.remove('show'),8000);
+}
+
+function updateSaveIndicator(){
+  const el=getEl('saveIndicator');
+  if(!el) return;
+  const iso=localStorage.getItem(SAVE_TIME_KEY);
+  if(!iso){ el.textContent='✓ Prêt'; return; }
+  const d=new Date(iso);
+  el.textContent=`✓ Sauvegardé à ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
+}
+
+// ---------- 4. NAVIGATION / MODALE ----------
+function currentView(){
+  return document.querySelector('section.active')?.id || 'dashboard';
+}
+function activateView(id,button=null){
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  (getEl(id)||getEl('dashboard'))?.classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  if(button){
+    button.classList.add('active');
+  }else{
+    const nav=[...document.querySelectorAll('nav button')].find(b=>(b.getAttribute('onclick')||'').includes(`'${id}'`));
+    nav?.classList.add('active');
+  }
+  localStorage.setItem(NAV_KEY,id);
+  renderAll();
+}
+function show(id,button){
+  if(currentView()!==id) history.pushState({view:id},'',location.href);
+  activateView(id,button);
+}
+window.addEventListener('popstate',event=>{
+  closeModal(false);
+  activateView(event.state?.view || 'dashboard');
+});
+
+function modal(html){
+  getEl('sheet').innerHTML=html;
+  getEl('modal').classList.add('open');
+}
+function closeModal(){ getEl('modal')?.classList.remove('open'); }
+
+// ---------- 5. TRI DES VARIÉTÉS ----------
+function sortedVarieties(){
+  return [...db.varieties].sort((a,b)=>{
+    const c=byText(a.species||'Sans catégorie',b.species||'Sans catégorie');
+    return c || byText(a.name,b.name);
+  });
+}
+function groupedVarieties(){
+  const groups=new Map();
+  sortedVarieties().forEach(v=>{
+    const k=(v.species||'Sans catégorie').trim()||'Sans catégorie';
+    if(!groups.has(k)) groups.set(k,[]);
+    groups.get(k).push(v);
+  });
+  return [...groups.entries()].sort((a,b)=>byText(a[0],b[0]));
+}
+function varietyOptions(selected='',blank=false){
+  return (blank?'<option value="">—</option>':'') + sortedVarieties().map(v=>
+    `<option value="${v.id}" ${v.id===selected?'selected':''}>${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`
+  ).join('');
+}
+function blockOptions(selected='',blank=false){
+  return (blank?'<option value="">—</option>':'') + db.blocks.map(b=>
+    `<option value="${b.id}" ${b.id===selected?'selected':''}>${esc(b.name)}</option>`
+  ).join('');
+}
+
+// ---------- 6. CHAMBRES / OCCUPATION ----------
+function allocationsOf(culture){
+  if(!culture || !Array.isArray(culture.allocations)) return [];
+  return culture.allocations
+    .map(a=>({chamberNumber:Number(a.chamberNumber),qty:Number(a.qty||0)}))
+    .filter(a=>a.chamberNumber>0 && a.qty>0);
+}
+
+function physicalUsed(blockId,n,excludeCultureId=''){
+  return db.cultures
+    .filter(c=>c.id!==excludeCultureId && c.blockId===blockId && c.status==='Active')
+    .reduce((sum,c)=>sum+allocationsOf(c)
+      .filter(a=>a.chamberNumber===Number(n))
+      .reduce((s,a)=>s+a.qty,0),0);
+}
+function chamberReserved(blockId,n,excludeCultureId=''){
+  return db.cultures
+    .filter(c=>c.id!==excludeCultureId && c.blockId===blockId && c.status==='En attente')
+    .reduce((sum,c)=>sum+allocationsOf(c)
+      .filter(a=>a.chamberNumber===Number(n))
+      .reduce((s,a)=>s+a.qty,0),0);
+}
+function chamberRemaining(blockId,n,excludeCultureId=''){
+  const cap=placesPerChamber(blockId);
+  return Math.max(0,cap-physicalUsed(blockId,n,excludeCultureId)-chamberReserved(blockId,n,excludeCultureId));
+}
+function chamberState(blockId,n){
+  const cap=placesPerChamber(blockId);
+  const used=physicalUsed(blockId,n);
+  const reserved=chamberReserved(blockId,n);
+  return {cap,used,reserved,free:Math.max(0,cap-used-reserved),over:Math.max(0,used+reserved-cap)};
+}
+function chamberOccupants(blockId,n){
+  return db.cultures
+    .filter(c=>c.blockId===blockId && c.status!=='Terminée')
+    .map(c=>({culture:c,allocation:allocationsOf(c).find(a=>a.chamberNumber===Number(n))}))
+    .filter(x=>x.allocation);
+}
+function blockIssues(blockId){
+  const b=blockById(blockId);
+  const issues=[];
+  for(let n=1;n<=Number(b?.chambers||0);n++){
+    const s=chamberState(blockId,n);
+    if(s.used+s.reserved>s.cap) issues.push(chamberCode(blockId,n));
+  }
+  return issues;
+}
+
+function recordChamberHistory(culture,allocation,endDate=todayISO()){
+  if(!culture||!allocation) return;
+  const exists=db.chamberHistory.some(h=>
+    h.cultureId===culture.id &&
+    Number(h.chamberNumber)===Number(allocation.chamberNumber) &&
+    h.endDate===endDate
+  );
+  if(exists) return;
+  db.chamberHistory.push({
+    id:uid('h'),
+    cultureId:culture.id,
+    blockId:culture.blockId,
+    chamberNumber:Number(allocation.chamberNumber),
+    varietyId:culture.varietyId,
+    qty:Number(allocation.qty||0),
+    startDate:culture.planting||culture.sowing||'',
+    endDate
+  });
+}
+function chamberHistoryItems(blockId,n){
+  const explicit=db.chamberHistory.filter(h=>h.blockId===blockId && Number(h.chamberNumber)===Number(n));
+  const inferred=db.cultures
+    .filter(c=>c.blockId===blockId && c.status==='Terminée' && allocationsOf(c).some(a=>a.chamberNumber===Number(n)))
+    .map(c=>{
+      const a=allocationsOf(c).find(a=>a.chamberNumber===Number(n));
+      return {
+        id:'inferred-'+c.id+'-'+n,cultureId:c.id,blockId,
+        chamberNumber:Number(n),varietyId:c.varietyId,qty:a?.qty||0,
+        startDate:c.planting||c.sowing||'',endDate:c.endDate||c.harvest||''
+      };
+    });
+  const keys=new Set(explicit.map(h=>`${h.cultureId}|${h.chamberNumber}`));
+  return [...explicit,...inferred.filter(h=>!keys.has(`${h.cultureId}|${h.chamberNumber}`))]
+    .sort((a,b)=>String(b.endDate||'').localeCompare(String(a.endDate||'')));
+}
+
+// ---------- 7. RENDU GLOBAL / TABLEAU DE BORD ----------
+function renderAll(){
+  renderDash();
+  renderBlocks();
+  renderChamberMap();
+  renderCultures();
+  renderPlanning();
+  renderStock();
+  renderSales();
+  renderVarieties();
+  renderOccupancySummary();
+  updateSaveIndicator();
+}
 
 function renderDash(){
-  let now=new Date(), in7=new Date(now); in7.setDate(now.getDate()+7);
-  let due=db.tasks.filter(t=>!t.done && new Date(t.date+'T23:59:00')>=now && new Date(t.date+'T23:59:00')<=in7).length;
-  let month=now.toISOString().slice(0,7);
-  let revenue=db.sales.filter(s=>s.date.startsWith(month)).reduce((a,s)=>a+Number(s.total),0);
-  let costs=db.costs.filter(c=>c.date.startsWith(month)).reduce((a,c)=>a+Number(c.amount),0);
-  document.getElementById('metrics').innerHTML=[
-    ['🌱','Cultures actives',db.cultures.filter(c=>c.status!=='Terminée'&&c.status!=='En attente').length],
-    ['🧱','Blocs',db.blocks.length],
+  const now=new Date();
+  const in7=new Date(now); in7.setDate(in7.getDate()+7);
+  const due=db.tasks.filter(t=>{
+    if(t.done||!t.date) return false;
+    const d=new Date(t.date+'T23:59:59');
+    return d>=now && d<=in7;
+  }).length;
+
+  const month=todayISO().slice(0,7);
+  const revenue=db.sales.filter(s=>String(s.date||'').startsWith(month)).reduce((a,s)=>a+Number(s.total||0),0);
+  const costs=db.costs.filter(c=>String(c.date||'').startsWith(month)).reduce((a,c)=>a+Number(c.amount||0),0);
+
+  getEl('metrics').innerHTML=[
+    ['🌱','Cultures actives',db.cultures.filter(c=>c.status==='Active').length],
+    ['🟨','Cultures en attente',db.cultures.filter(c=>c.status==='En attente').length],
     ['📅','Tâches à venir',due],
     ['📈','Marge du mois',money(revenue-costs)]
   ].map(x=>`<div class="card metric"><span>${x[0]}</span><b>${x[2]}</b><small>${x[1]}</small></div>`).join('');
 
-  let upcoming=db.tasks.filter(t=>!t.done).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
-  document.getElementById('upcoming').innerHTML=upcoming.length
+  const upcoming=db.tasks.filter(t=>!t.done&&t.date).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
+  getEl('upcoming').innerHTML=upcoming.length
     ? upcoming.map(t=>`<div class="item"><b>${fmt(t.date)}</b> · ${esc(t.title)}<br><span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}</span></div>`).join('')
     : '<div class="empty">Aucune échéance.</div>';
 
-  let low=db.stock.filter(s=>Number(s.qty)<=Number(s.min));
-  document.getElementById('alerts').innerHTML=low.length
+  const low=db.stock.filter(s=>Number(s.qty)<=Number(s.min));
+  getEl('alerts').innerHTML=low.length
     ? low.map(s=>`<div class="item"><span class="dangerText">⚠ ${esc(s.name)}</span> · ${s.qty} ${esc(s.unit)} (seuil ${s.min})</div>`).join('')
     : '<div class="empty">Aucune alerte.</div>';
 }
 
+function renderOccupancySummary(){
+  const el=getEl('occupancySummary'); if(!el) return;
+  el.innerHTML=db.blocks.map(b=>{
+    let used=0,reserved=0;
+    const total=Number(b.chambers||0)*placesPerChamber(b.id);
+    for(let n=1;n<=Number(b.chambers||0);n++){
+      used+=physicalUsed(b.id,n);
+      reserved+=chamberReserved(b.id,n);
+    }
+    const free=Math.max(0,total-used-reserved);
+    const issues=blockIssues(b.id);
+    return `<div class="item"><b>${esc(b.name)}</b><br>
+      <span class="small">${used} plantés · ${reserved} réservés · ${free} emplacements disponibles</span>
+      ${issues.length?`<div class="dangerText small">⚠ À corriger : ${issues.map(x=>esc(x)).join(', ')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function goToPlan(){
+  show('cultures',null);
+  setTimeout(()=>getEl('chamberMap')?.scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+function openReservation(){
+  openCulture('En attente');
+}
+function quickStockMove(){
+  if(!db.stock.length){ alert('Aucun article de stock.'); return; }
+  const opts=[...db.stock].sort((a,b)=>byText(a.name,b.name))
+    .map(s=>`<option value="${s.id}">${esc(s.name)} — ${s.qty} ${esc(s.unit)}</option>`).join('');
+  modal(`<h2>Mouvement de stock</h2>
+    <label>Article</label><select id="quickStockId">${opts}</select>
+    <br><button onclick="moveStock(getEl('quickStockId').value)">Continuer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+
+// ---------- 8. BLOCS / PLAN DES CHAMBRES ----------
 function renderBlocks(){
-  document.getElementById('blockList').innerHTML=db.blocks.length
-  ? db.blocks.map(b=>`<div class="item"><b>${esc(b.name)}</b> <span class="pill gray">${esc(b.system||'Système')}</span>${b.chambers?` <span class="pill">${esc(b.chambers)} chambres</span>`:''}${b.capacity?` <span class="pill">${esc(b.capacity)} places</span>`:''}</div>`).join('')
-  : '<div class="empty">Aucun bloc.</div>';
+  getEl('blockList').innerHTML=db.blocks.length
+    ? db.blocks.map(b=>`<div class="item"><b>${esc(b.name)}</b>
+      <span class="pill gray">${esc(b.system||'Système')}</span>
+      ${b.chambers?`<span class="pill">${Number(b.chambers)} chambres</span>`:''}
+      ${b.capacity?`<span class="pill">${Number(b.capacity)} places</span>`:''}
+    </div>`).join('')
+    : '<div class="empty">Aucun bloc.</div>';
 }
 
 function openBlock(){
   modal(`<h2>Nouveau bloc</h2>
-  <label>Nom du bloc</label><input id="bname" placeholder="ex. Bloc Growstream 4">
-  <label>Type de système</label><input id="bsystem" placeholder="Growstream, NFT...">
-  <label>Capacité / nombre de places</label><input id="bcap" type="number" min="0">
-  <br><button onclick="addBlock()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+    <label>Nom du bloc</label><input id="bname" placeholder="ex. Bloc NFT">
+    <label>Type de système</label><input id="bsystem" placeholder="GrowStream, NFT...">
+    <div class="row">
+      <div><label>Nombre de chambres</label><input id="bchambers" type="number" min="0" value="0"></div>
+      <div><label>Places / chambre</label><input id="bppc" type="number" min="1" value="20"></div>
+    </div>
+    <br><button onclick="addBlock()">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function addBlock(){
-  db.blocks.push({id:uid('b'),name:bname.value.trim()||'Nouveau bloc',system:bsystem.value.trim(),capacity:bcap.value});
-  closeModal(); save();
+  const chambers=Math.max(0,Number(getEl('bchambers').value||0));
+  const ppc=Math.max(1,Number(getEl('bppc').value||20));
+  db.blocks.push({
+    id:uid('b'),
+    name:getEl('bname').value.trim()||'Nouveau bloc',
+    system:getEl('bsystem').value.trim(),
+    chambers,plantsPerChamber:ppc,capacity:chambers*ppc,prefix:'C'
+  });
+  closeModal(); persist({message:'Bloc ajouté'});
 }
-
-
-function chamberPrefix(id){return id==='b1'?'L':id==='b2'?'S':'C'}
-function chamberCode(id,n){return chamberPrefix(id)+String(n).padStart(2,'0')}
-function cultureChambers(c){
- if(Array.isArray(c.chamberNumbers))return c.chamberNumbers.map(Number);
- let a=[];(c.chambers||'').split(',').forEach(x=>{x=x.trim();let m=x.match(/^(\d+)\s*(?:à|-)\s*(\d+)$/);if(m){for(let i=+m[1];i<=+m[2];i++)a.push(i)}else if(/^\d+$/.test(x))a.push(+x)});return [...new Set(a)]
-}
-function occupant(b,n){return db.cultures.find(c=>c.blockId===b&&c.status!=='Terminée'&&cultureChambers(c).includes(n))}
 
 function renderChamberMap(){
-  let el=document.getElementById('chamberMap'); if(!el)return;
-
+  const el=getEl('chamberMap'); if(!el) return;
   el.innerHTML=db.blocks.map(b=>{
     const total=Number(b.chambers||0);
-    const firstColCount=Math.ceil(total/2);
-    const secondStart=firstColCount+1;
+    if(!total) return `<div class="card"><h3>${esc(b.name)}</h3><div class="empty">Pas de chambres numérotées pour ce bloc.</div></div>`;
 
-    const buttonHtml=(n)=>{
-      let used=chamberUsed(b.id,n),free=20-used,waiting=chamberWaiting(b.id,n);
-      let stateClass = waiting ? 'waitingYellow' : (used===0 ? 'secondary' : (free===0 ? 'danger' : 'partialGreen'));
-      let label = waiting ? (used===0?'En attente':`${free} libres · attente`) : (used===0?'Libre':(free===0?'Complète':`${free} libres`));
-      return `<button class="${stateClass}" style="padding:8px 4px" onclick="openChamber('${b.id}',${n})">
-        <b>${chamberCode(b.id,n)}</b><br>
-        <span style="font-size:11px">${used}/20 · ${label}</span>
+    const first=Math.ceil(total/2);
+    const second=first+1;
+    const button=n=>{
+      const s=chamberState(b.id,n);
+      let cls='secondary', label='Libre';
+      if(s.over>0){ cls='danger'; label=`⚠ ${s.used+s.reserved}/${s.cap}`; }
+      else if(s.reserved>0){ cls='waitingYellow'; label=s.used?`${s.used} plantés · ${s.reserved} prévus`:`${s.reserved}/${s.cap} prévus`; }
+      else if(s.used>=s.cap){ cls='danger'; label=`${s.cap}/${s.cap} · Complète`; }
+      else if(s.used>0){ cls='partialGreen'; label=`${s.used}/${s.cap} · ${s.free} libres`; }
+      return `<button class="${cls}" style="padding:8px 4px" onclick="openChamber('${b.id}',${n})">
+        <b>${chamberCode(b.id,n)}</b><br><span style="font-size:11px">${label}</span>
       </button>`;
     };
 
-    const left=Array.from({length:firstColCount},(_,i)=>i+1);
-    const right=Array.from({length:total-firstColCount},(_,i)=>secondStart+i);
-
+    const left=Array.from({length:first},(_,i)=>i+1);
+    const right=Array.from({length:total-first},(_,i)=>second+i);
     return `<div class="card"><h3>${esc(b.name)}</h3>
-      <div class="small muted">Chaque chambre possède 20 emplacements.</div>
+      <div class="small muted">${placesPerChamber(b.id)} emplacements par chambre.</div>
       <div class="chamberColumns">
-        <div class="chamberColumn">${left.map(buttonHtml).join('')}</div>
-        <div class="chamberColumn">${right.map(buttonHtml).join('')}</div>
+        <div class="chamberColumn">${left.map(button).join('')}</div>
+        <div class="chamberColumn">${right.map(button).join('')}</div>
       </div>
     </div>`;
   }).join('');
 }
 
-function openChamber(b,n){
- let c=occupant(b,n),code=chamberCode(b,n);
- if(c){
-   modal(`<h2>${code}</h2>
-   <p><b>${esc(varietyName(c.varietyId))}</b></p>
-   <p>${c.qty||0} plants/unités · ${esc(c.status)}</p>
-   <p>Mise en système : ${fmt(c.planting)||'—'}</p>
-   ${c.endDate?`<p>Fin de culture : ${fmt(c.endDate)}</p>`:''}
-   <div class="toolbar">
-     <button onclick="openEditCulture('${c.id}')">Modifier</button>
-     <button class="secondary" onclick="finishCulture('${c.id}')">Terminer la culture</button>
-     <button class="secondary" onclick="closeModal()">Fermer</button>
-   </div>`);
- }else{
-   modal(`<h2>${code}</h2><p>Chambre libre.</p><button class="secondary" onclick="closeModal()">Fermer</button>`);
- }
-}
+function openChamber(blockId,n){
+  const code=chamberCode(blockId,n);
+  const state=chamberState(blockId,n);
+  const occupants=chamberOccupants(blockId,n);
+  const historyItems=chamberHistoryItems(blockId,n);
 
-function openEditCulture(id){
- let c=db.cultures.find(x=>x.id===id); if(!c)return;
- let vopts=sortedVarieties().map(v=>`<option value="${v.id}" ${v.id===c.varietyId?'selected':''}>${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
- let bopts=db.blocks.map(b=>`<option value="${b.id}" ${b.id===c.blockId?'selected':''}>${esc(b.name)}</option>`).join('');
- modal(`<h2>Modifier la culture</h2>
- <label>Variété</label><select id="evar">${vopts}</select>
- <label>Bloc de système</label><select id="eblock" onchange="refreshEditChambers('${c.id}')">${bopts}</select>
- <div id="editChamberHost"></div>
- <label>Quantité</label><input id="eqty" type="number" min="0" value="${Number(c.qty||0)}">
- <label>Date de semis</label><input id="esow" type="date" value="${c.sowing||''}">
- <label>Date de plantation / mise en système</label><input id="eplant" type="date" value="${c.planting||''}">
- <label>Date de récolte prévue</label><input id="eharv" type="date" value="${c.harvest||''}">
- <label>Statut</label><select id="estatus">
-   <option ${c.status==='Active'?'selected':''}>Active</option>
-   <option ${c.status==='En attente'?'selected':''}>En attente</option>
-   <option ${c.status==='Terminée'?'selected':''}>Terminée</option>
- </select>
- <label>Observations</label><textarea id="enote">${esc(c.notes||'')}</textarea>
- <br><button onclick="saveCultureEdit('${c.id}')">Enregistrer les modifications</button>
- <button class="secondary" onclick="closeModal()">Annuler</button>`);
- refreshEditChambers(id);
-}
-function editChamberSelector(cultureId,bid){
- let c=db.cultures.find(x=>x.id===cultureId); let b=db.blocks.find(x=>x.id===bid); if(!c||!b)return '';
- let selected = c.blockId===bid ? cultureChambers(c) : [];
- let used=new Set();
- db.cultures.filter(x=>x.id!==cultureId&&x.blockId===bid&&x.status!=='Terminée')
-   .forEach(x=>cultureChambers(x).forEach(n=>used.add(n)));
- return `<label>Chambre(s) de culture</label><select id="echambers" multiple size="8">
- ${Array.from({length:b.chambers},(_,i)=>{
-   let n=i+1,u=used.has(n),s=selected.includes(n);
-   return `<option value="${n}" ${s?'selected':''} ${u?'disabled':''}>${chamberCode(bid,n)}${u?' — occupée':''}</option>`
- }).join('')}</select>
- <div class="small muted">Tu peux corriger une erreur de chambre. Les chambres occupées par une autre culture sont bloquées.</div>`;
-}
-function refreshEditChambers(cultureId){
- let h=document.getElementById('editChamberHost'); if(h)h.innerHTML=editChamberSelector(cultureId,eblock.value);
-}
-function saveCultureEdit(id){
- let c=db.cultures.find(x=>x.id===id); if(!c)return;
- let nums=Array.from(echambers.selectedOptions).map(o=>Number(o.value));
- if(!nums.length && estatus.value!=='Terminée'){
-   alert('Sélectionne au moins une chambre pour une culture active.'); return;
- }
- c.varietyId=evar.value;
- c.blockId=eblock.value;
- c.chamberNumbers=nums;
- c.chambers=nums.join(',');
- c.qty=Number(eqty.value||0);
- c.sowing=esow.value;
- c.planting=eplant.value;
- c.harvest=eharv.value;
- c.status=estatus.value;
- c.notes=enote.value.trim();
- if(c.status==='Terminée' && !c.endDate) c.endDate=new Date().toISOString().slice(0,10);
- if(c.status!=='Terminée') c.endDate='';
- closeModal(); save();
-}
-function finishCulture(id){
- let c=db.cultures.find(x=>x.id===id); if(!c)return;
- if(!confirm('Terminer cette culture et libérer sa ou ses chambres ?'))return;
- c.status='Terminée';
- c.endDate=new Date().toISOString().slice(0,10);
- closeModal(); save();
-}
-
-function chamberSelector(bid){
- let b=db.blocks.find(x=>x.id===bid);if(!b)return '';
- let used=new Set();db.cultures.filter(c=>c.blockId===bid&&c.status!=='Terminée').forEach(c=>cultureChambers(c).forEach(n=>used.add(n)));
- return `<label>Chambre(s) de culture</label><select id="fchambers" multiple size="8">${Array.from({length:b.chambers},(_,i)=>{let n=i+1,u=used.has(n);return `<option value="${n}" ${u?'disabled':''}>${chamberCode(bid,n)}${u?' — occupée':''}</option>`}).join('')}</select><div class="small muted">Plusieurs chambres peuvent être sélectionnées. Les chambres occupées sont bloquées.</div>`
-}
-function refreshChambers(){let h=document.getElementById('chamberSelectorHost');if(h)h.innerHTML=chamberSelector(fblock.value)}
-
-function renderCultures(){
-  let el=document.getElementById('cultureList');
-  el.innerHTML=db.cultures.length
-  ? db.cultures.map(c=>`<div class="card">
-    <div class="row">
-      <div>
-        <h3>${esc(varietyName(c.varietyId))}</h3>
-        <span class="pill">${esc(blockName(c.blockId))}</span>
-        <span class="pill gray">${esc(c.system||db.blocks.find(b=>b.id===c.blockId)?.system||'Système')}</span>
+  const current=occupants.length ? occupants.map(({culture,allocation})=>{
+    const waiting=culture.status==='En attente';
+    return `<div class="item">
+      <b>${esc(varietyName(culture.varietyId))}</b> — ${allocation.qty} plant(s)
+      ${waiting?'<span class="pill warn">En attente</span>':''}
+      <br><span class="small muted">${waiting?'Prévu':'Mise en système'} : ${fmt(culture.planting)||'—'}</span>
+      <div class="toolbar" style="margin-top:7px">
+        <button class="secondary" onclick="openRemovePlants('${culture.id}',${n})">− Retirer</button>
+        <button class="secondary" onclick="openMoveAllocation('${culture.id}',${n})">↔ Déplacer</button>
+        <button class="secondary" onclick="openEditCulture('${culture.id}')">Modifier</button>
+        <button class="danger" onclick="releaseOneChamber('${culture.id}',${n})">Libérer</button>
       </div>
-      <div><button class="secondary fit" onclick="openEditCulture('${c.id}')">Modifier</button> <button class="danger fit" onclick="delCulture('${c.id}')">×</button></div>
+    </div>`;
+  }).join('') : '<div class="empty">Aucune culture affectée.</div>';
+
+  const hist=historyItems.length
+    ? `<details style="margin-top:10px"><summary>Historique de cette chambre (${historyItems.length})</summary>
+      ${historyItems.slice(0,20).map(h=>`<div class="item small">
+        <b>${esc(varietyName(h.varietyId))}</b> · ${h.qty} plant(s)<br>
+        ${fmt(h.startDate)||'—'} → ${fmt(h.endDate)||'—'}
+      </div>`).join('')}
+    </details>` : '';
+
+  modal(`<h2>${code}</h2>
+    <div class="chamberSummary">
+      <div><b>${state.used}</b><span class="small">plantés</span></div>
+      <div><b>${state.reserved}</b><span class="small">réservés</span></div>
+      <div><b>${state.free}</b><span class="small">libres</span></div>
     </div>
-    <p><b>${c.qty||0}</b> plants/unités · statut <b>${esc(c.status||'Active')}</b></p>
-    ${c.chambers?`<p><span class="pill">Chambre(s) : ${esc(c.chambers)}</span></p>`:''}
-    <p class="small">Semis : ${fmt(c.sowing)||'—'} · Mise en système : ${fmt(c.planting)||'—'} · Récolte prévue : ${fmt(c.harvest)||'—'}${c.endDate?` · Fin : ${fmt(c.endDate)}`:''}</p>
-    ${c.notes?`<p class="muted">${esc(c.notes)}</p>`:''}
-  </div>`).join('')
-  : '<div class="empty">Aucune culture. Ajoute ton premier lot.</div>';
+    ${state.over?`<div class="dangerText">⚠ Dépassement de ${state.over} emplacement(s). À corriger.</div>`:''}
+    ${current}
+    <div class="actionGrid">
+      <button onclick="addPlantsToChamber('${blockId}',${n},false)">＋ Ajouter des plants</button>
+      <button class="secondary" onclick="addPlantsToChamber('${blockId}',${n},true)">🟨 Réserver</button>
+    </div>
+    ${hist}
+    <button class="secondary" style="width:100%;margin-top:10px" onclick="closeModal()">Fermer</button>`);
 }
 
-function openCulture(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
-  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
-  modal(`<h2>Nouvelle culture / lot</h2>
-  <label>Variété</label><select id="fvar">${vopts}</select>
-  <label>Bloc de système</label><select id="fblock" onchange="refreshChambers()">${bopts}</select>
-  <div id="chamberSelectorHost"></div>
-  <label>Type de système</label><input id="fsys" placeholder="optionnel si déjà défini dans le bloc">
-  <label>Quantité</label><input id="fqty" type="number" min="0" value="0">
-  <label>Date de semis</label><input id="fsow" type="date">
-  <label>Date de plantation / mise en système</label><input id="fplant" type="date">
-  <label>Date de récolte prévue</label><input id="fharv" type="date">
-  <label>Statut</label><select id="fstatus"><option>Active</option><option>En attente</option><option>Terminée</option></select>
-  <label>Observations</label><textarea id="fnote" placeholder="Croissance, problème sanitaire, EC, rendement, etc."></textarea>
-  <br><button onclick="addCulture()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`); refreshChambers();
+// ---------- 9. CULTURES ----------
+function allocationRowHtml(blockId,n='',q='',cultureId=''){
+  const b=blockById(blockId);
+  if(!b || !Number(b.chambers)) return '<div class="empty">Ce bloc ne possède pas de chambres numérotées.</div>';
+
+  const opts=Array.from({length:Number(b.chambers)},(_,i)=>i+1).map(num=>{
+    const free=chamberRemaining(blockId,num,cultureId);
+    const selected=Number(n)===num;
+    return `<option value="${num}" ${selected?'selected':''} ${free<=0&&!selected?'disabled':''}>
+      ${chamberCode(blockId,num)} — ${free} libre(s)
+    </option>`;
+  }).join('');
+
+  return `<div class="row allocRow" style="align-items:end;margin:7px 0">
+    <div><label>Chambre</label><select class="allocChamber"><option value="">— choisir —</option>${opts}</select></div>
+    <div><label>Plants</label><input class="allocQty" type="number" min="1" value="${q||''}" placeholder="1 à ${placesPerChamber(blockId)}"></div>
+    <button type="button" class="danger fit" onclick="this.closest('.allocRow').remove()">×</button>
+  </div>`;
 }
-function addCulture(){
-  let c={
-    id:uid('c'),varietyId:fvar.value,blockId:fblock.value,system:fsys.value.trim(),qty:Number(fqty.value),
-    chamberNumbers:Array.from(fchambers.selectedOptions).map(o=>Number(o.value)),chambers:Array.from(fchambers.selectedOptions).map(o=>o.value).join(','),sowing:fsow.value,planting:fplant.value,harvest:fharv.value,status:fstatus.value,notes:fnote.value.trim()
-  };
-  db.cultures.push(c);
+function allocationRows(blockId,current=[],cultureId=''){
+  const rows=current.length?current:[{chamberNumber:'',qty:''}];
+  return rows.map(a=>allocationRowHtml(blockId,a.chamberNumber,a.qty,cultureId)).join('');
+}
+function addAllocationRow(blockSelectId,hostId,cultureId=''){
+  const blockId=getEl(blockSelectId).value;
+  getEl(hostId).insertAdjacentHTML('beforeend',allocationRowHtml(blockId,'','',cultureId));
+}
+function readAllocations(hostId,blockId,cultureId=''){
+  const rows=[...document.querySelectorAll(`#${hostId} .allocRow`)];
+  const arr=[];
+  const seen=new Set();
+  for(const row of rows){
+    const n=Number(row.querySelector('.allocChamber')?.value||0);
+    const q=Number(row.querySelector('.allocQty')?.value||0);
+    if(!n&&!q) continue;
+    if(!n||q<=0){ alert('Renseigne la chambre et le nombre de plants.'); return null; }
+    if(seen.has(n)){ alert('La même chambre est indiquée deux fois.'); return null; }
+    const free=chamberRemaining(blockId,n,cultureId);
+    if(q>free){
+      alert(`${chamberCode(blockId,n)} : ${free} emplacement(s) maximum disponible(s).`);
+      return null;
+    }
+    seen.add(n);
+    arr.push({chamberNumber:n,qty:q});
+  }
+  if(!arr.length){ alert('Ajoute au moins une chambre.'); return null; }
+  return arr;
+}
+function syncCultureAllocationFields(c){
+  c.allocations=allocationsOf(c);
+  c.chamberNumbers=c.allocations.map(a=>a.chamberNumber);
+  c.chambers=c.chamberNumbers.join(',');
+  c.qty=c.allocations.reduce((s,a)=>s+a.qty,0);
+}
+function addAutoTasks(c){
   if(c.sowing) db.tasks.push({id:uid('t'),title:'Semis',date:c.sowing,varietyId:c.varietyId,blockId:c.blockId,done:true});
   if(c.planting) db.tasks.push({id:uid('t'),title:'Mise en système / plantation',date:c.planting,varietyId:c.varietyId,blockId:c.blockId,done:false});
   if(c.harvest) db.tasks.push({id:uid('t'),title:'Récolte prévue',date:c.harvest,varietyId:c.varietyId,blockId:c.blockId,done:false});
-  closeModal(); save();
 }
-function delCulture(id){ if(confirm('Supprimer cette culture ?')){ db.cultures=db.cultures.filter(c=>c.id!==id); save(); } }
 
-function openTask(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
-  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
-  modal(`<h2>Nouvelle tâche</h2>
-  <label>Titre</label><input id="ttitle" placeholder="ex. semis, récolte, nettoyage...">
-  <label>Date</label><input id="tdate" type="date" value="${new Date().toISOString().slice(0,10)}">
-  <label>Variété</label><select id="tvar"><option value="">—</option>${vopts}</select>
-  <label>Bloc</label><select id="tblock"><option value="">—</option>${bopts}</select>
-  <br><button onclick="addTask()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+function openCulture(defaultStatus='Active'){
+  const firstBlock=db.blocks[0]?.id||'';
+  modal(`<h2>Nouvelle culture / lot</h2>
+    <label>Variété</label><select id="fvar">${varietyOptions()}</select>
+    <label>GrowStream / bloc</label><select id="fblock" onchange="refreshNewAllocations()">${blockOptions(firstBlock)}</select>
+    <div id="newAllocHost"></div>
+    <button type="button" class="secondary" onclick="addAllocationRow('fblock','newAllocHost')">＋ Ajouter une chambre</button>
+    <div class="small muted">Le nombre total de plants est calculé automatiquement. La limite de chaque chambre est contrôlée.</div>
+    <label>Date de semis</label><input id="fsow" type="date">
+    <label>Date de plantation / mise en système</label><input id="fplant" type="date">
+    <label>Date de récolte prévue</label><input id="fharv" type="date">
+    <label>Statut</label><select id="fstatus">
+      <option ${defaultStatus==='Active'?'selected':''}>Active</option>
+      <option ${defaultStatus==='En attente'?'selected':''}>En attente</option>
+      <option ${defaultStatus==='Terminée'?'selected':''}>Terminée</option>
+    </select>
+    <label>Observations</label><textarea id="fnote" placeholder="Croissance, problème sanitaire, EC, rendement…"></textarea>
+    <br><button onclick="addCulture()">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
+  refreshNewAllocations();
 }
-function addTask(){ db.tasks.push({id:uid('t'),title:ttitle.value.trim()||'Tâche',date:tdate.value,varietyId:tvar.value,blockId:tblock.value,done:false}); closeModal(); save(); }
-function doneTask(id){ let t=db.tasks.find(x=>x.id===id); if(t)t.done=true; save(); }
+function refreshNewAllocations(){
+  const host=getEl('newAllocHost');
+  if(host) host.innerHTML=allocationRows(getEl('fblock').value,[],'');
+}
+function addCulture(){
+  const blockId=getEl('fblock').value;
+  const allocations=readAllocations('newAllocHost',blockId,'');
+  if(!allocations) return;
 
-function renderPlanning(){
-  let filter=document.getElementById('planFilter')?.value||'all';
-  let today=new Date(); today.setHours(0,0,0,0);
-  let arr=db.tasks.filter(t=>!t.done).sort((a,b)=>a.date.localeCompare(b.date));
-  if(filter!=='all'){
-    let max=new Date(today); max.setDate(max.getDate()+Number(filter));
-    arr=arr.filter(t=>{let d=new Date(t.date+'T12:00');return d>=today&&d<=max});
+  const c={
+    id:uid('c'),
+    varietyId:getEl('fvar').value,
+    blockId,
+    system:blockById(blockId)?.system||'',
+    allocations,
+    chamberNumbers:allocations.map(a=>a.chamberNumber),
+    chambers:allocations.map(a=>a.chamberNumber).join(','),
+    qty:allocations.reduce((s,a)=>s+a.qty,0),
+    sowing:getEl('fsow').value,
+    planting:getEl('fplant').value,
+    harvest:getEl('fharv').value,
+    endDate:'',
+    status:getEl('fstatus').value,
+    notes:getEl('fnote').value.trim()
+  };
+  if(c.status==='Terminée') c.endDate=todayISO();
+  db.cultures.push(c);
+  addAutoTasks(c);
+  closeModal(); persist({message:c.status==='En attente'?'Réservation enregistrée':'Culture enregistrée'});
+}
+
+function populateCultureBlockFilter(){
+  const select=getEl('cultureBlockFilter'); if(!select) return;
+  const current=select.value||'all';
+  select.innerHTML='<option value="all">Tous les GrowStream</option>'+db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+  if([...select.options].some(o=>o.value===current)) select.value=current;
+}
+
+function renderCultures(){
+  const el=getEl('cultureList'); if(!el) return;
+  populateCultureBlockFilter();
+
+  const q=(getEl('cultureSearch')?.value||'').trim().toLocaleLowerCase('fr');
+  const status=getEl('cultureStatusFilter')?.value||'all';
+  const block=getEl('cultureBlockFilter')?.value||'all';
+
+  const arr=[...db.cultures].filter(c=>{
+    if(status!=='all'&&c.status!==status) return false;
+    if(block!=='all'&&c.blockId!==block) return false;
+    if(!q) return true;
+    const v=db.varieties.find(v=>v.id===c.varietyId);
+    const chambers=allocationsOf(c).map(a=>chamberCode(c.blockId,a.chamberNumber)).join(' ');
+    return `${v?.name||''} ${v?.species||''} ${chambers} ${c.notes||''}`.toLocaleLowerCase('fr').includes(q);
+  }).sort((a,b)=>{
+    const rank=x=>x.status==='Active'?0:x.status==='En attente'?1:2;
+    return rank(a)-rank(b) || byText(varietyName(a.varietyId),varietyName(b.varietyId));
+  });
+
+  el.innerHTML=arr.length ? arr.map(c=>{
+    const allocations=allocationsOf(c).map(a=>`${chamberCode(c.blockId,a.chamberNumber)} : ${a.qty}/${placesPerChamber(c.blockId)}`).join(' · ');
+    return `<div class="card">
+      <div class="row">
+        <div>
+          <h3>${esc(varietyName(c.varietyId))}</h3>
+          <span class="pill">${esc(blockName(c.blockId))}</span>
+          ${c.status==='En attente'?'<span class="pill warn">En attente</span>':''}
+        </div>
+        <div>
+          <button class="secondary fit" onclick="openEditCulture('${c.id}')">Modifier</button>
+          ${c.status!=='Terminée'?`<button class="secondary fit" onclick="finishCulture('${c.id}')">Terminer</button>`:''}
+          <button class="danger fit" onclick="deleteCulture('${c.id}')">×</button>
+        </div>
+      </div>
+      <p><b>${c.qty||0}</b> plants · statut <b>${esc(c.status)}</b></p>
+      ${allocations?`<p class="small"><b>Chambres :</b> ${allocations}</p>`:''}
+      <p class="small">Semis : ${fmt(c.sowing)||'—'} · Mise en système : ${fmt(c.planting)||'—'} · Récolte prévue : ${fmt(c.harvest)||'—'}${c.endDate?` · Fin : ${fmt(c.endDate)}`:''}</p>
+      ${c.notes?`<p class="muted">${esc(c.notes)}</p>`:''}
+    </div>`;
+  }).join('') : '<div class="empty">Aucune culture correspondant aux filtres.</div>';
+}
+
+function openEditCulture(id){
+  const c=db.cultures.find(x=>x.id===id); if(!c) return;
+  modal(`<h2>Modifier la culture</h2>
+    <label>Variété</label><select id="evar">${varietyOptions(c.varietyId)}</select>
+    <label>GrowStream / bloc</label><select id="eblock" onchange="refreshEditAllocations('${c.id}')">${blockOptions(c.blockId)}</select>
+    <div id="editAllocHost"></div>
+    <button type="button" class="secondary" onclick="addAllocationRow('eblock','editAllocHost','${c.id}')">＋ Ajouter une chambre</button>
+    <div class="small muted">Tu peux corriger une chambre ou le nombre de plants. Les autres affectations déjà présentes sont prises en compte.</div>
+    <label>Date de semis</label><input id="esow" type="date" value="${esc(c.sowing)}">
+    <label>Date de plantation / mise en système</label><input id="eplant" type="date" value="${esc(c.planting)}">
+    <label>Date de récolte prévue</label><input id="eharv" type="date" value="${esc(c.harvest)}">
+    <label>Statut</label><select id="estatus">
+      <option ${c.status==='Active'?'selected':''}>Active</option>
+      <option ${c.status==='En attente'?'selected':''}>En attente</option>
+      <option ${c.status==='Terminée'?'selected':''}>Terminée</option>
+    </select>
+    <label>Observations</label><textarea id="enote">${esc(c.notes||'')}</textarea>
+    <br><button onclick="saveCultureEdit('${c.id}')">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
+  refreshEditAllocations(id);
+}
+function refreshEditAllocations(id){
+  const c=db.cultures.find(x=>x.id===id), host=getEl('editAllocHost');
+  if(!c||!host) return;
+  const blockId=getEl('eblock').value;
+  host.innerHTML=allocationRows(blockId,blockId===c.blockId?allocationsOf(c):[],id);
+}
+function saveCultureEdit(id){
+  const c=db.cultures.find(x=>x.id===id); if(!c) return;
+  const blockId=getEl('eblock').value;
+  let allocations=readAllocations('editAllocHost',blockId,id);
+  if(!allocations && getEl('estatus').value!=='Terminée') return;
+  allocations=allocations||[];
+
+  c.varietyId=getEl('evar').value;
+  c.blockId=blockId;
+  c.system=blockById(blockId)?.system||c.system||'';
+  c.allocations=allocations;
+  syncCultureAllocationFields(c);
+  c.sowing=getEl('esow').value;
+  c.planting=getEl('eplant').value;
+  c.harvest=getEl('eharv').value;
+  const wasTerminated=c.status==='Terminée';
+  c.status=getEl('estatus').value;
+  c.notes=getEl('enote').value.trim();
+
+  if(c.status==='Terminée'){
+    c.endDate=c.endDate||todayISO();
+    if(!wasTerminated) allocationsOf(c).forEach(a=>recordChamberHistory(c,a,c.endDate));
+  }else{
+    c.endDate='';
   }
-  document.getElementById('planningList').innerHTML=arr.length
-  ? arr.map(t=>`<div class="card"><div class="row"><div><b>${fmt(t.date)} · ${esc(t.title)}</b><br><span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}</span></div><button class="fit" onclick="doneTask('${t.id}')">✓</button></div></div>`).join('')
-  : '<div class="empty">Aucune tâche.</div>';
+  closeModal(); persist({message:'Culture modifiée'});
+}
+function finishCulture(id){
+  const c=db.cultures.find(x=>x.id===id); if(!c||c.status==='Terminée') return;
+  if(!confirm('Terminer cette culture et libérer toutes ses chambres ?')) return;
+  c.endDate=todayISO();
+  allocationsOf(c).forEach(a=>recordChamberHistory(c,a,c.endDate));
+  c.status='Terminée';
+  persist({message:'Culture terminée'});
+}
+function deleteCulture(id){
+  if(!confirm('Supprimer cette culture ? Tu pourras annuler juste après.')) return;
+  db.cultures=db.cultures.filter(c=>c.id!==id);
+  persist({message:'Culture supprimée — Annuler ?'});
 }
 
+function addPlantsToChamber(blockId,n,waiting=false){
+  const free=chamberRemaining(blockId,n);
+  if(free<=0){ alert('Cette chambre ne possède plus de place disponible.'); return; }
+  modal(`<h2>${waiting?'Réserver':'Ajouter des plants'} · ${chamberCode(blockId,n)}</h2>
+    <p>${free} emplacement(s) disponible(s).</p>
+    <label>Variété</label><select id="qaVar">${varietyOptions()}</select>
+    <label>Nombre de plants</label><input id="qaQty" type="number" min="1" max="${free}" value="${Math.min(placesPerChamber(blockId),free)}">
+    <label>${waiting?'Date prévue de mise en système':'Date de mise en système'}</label><input id="qaDate" type="date" value="${todayISO()}">
+    <label>Observation</label><textarea id="qaNote" placeholder="optionnel"></textarea>
+    <br><button onclick="saveQuickAllocation('${blockId}',${n},${waiting})">Enregistrer</button>
+    <button class="secondary" onclick="openChamber('${blockId}',${n})">Retour</button>`);
+}
+function saveQuickAllocation(blockId,n,waiting){
+  const free=chamberRemaining(blockId,n);
+  const q=Number(getEl('qaQty').value||0);
+  if(q<1||q>free){ alert(`Choisis entre 1 et ${free} plants.`); return; }
+  const c={
+    id:uid('c'),varietyId:getEl('qaVar').value,blockId,
+    system:blockById(blockId)?.system||'',
+    qty:q,allocations:[{chamberNumber:Number(n),qty:q}],
+    chamberNumbers:[Number(n)],chambers:String(n),
+    sowing:'',planting:getEl('qaDate').value,harvest:'',endDate:'',
+    status:waiting?'En attente':'Active',notes:getEl('qaNote').value.trim()
+  };
+  db.cultures.push(c);
+  closeModal(); persist({message:waiting?'Réservation enregistrée':'Plants ajoutés'});
+}
+
+function openRemovePlants(cultureId,n){
+  const c=db.cultures.find(x=>x.id===cultureId);
+  const a=allocationsOf(c).find(x=>x.chamberNumber===Number(n));
+  if(!c||!a) return;
+  modal(`<h2>Retirer des plants · ${chamberCode(c.blockId,n)}</h2>
+    <p>${esc(varietyName(c.varietyId))} : <b>${a.qty}</b> plant(s)</p>
+    <label>Nombre à retirer</label><input id="removeQty" type="number" min="1" max="${a.qty}" value="1">
+    <br><button onclick="saveRemovePlants('${cultureId}',${n})">Retirer</button>
+    <button class="secondary" onclick="openChamber('${c.blockId}',${n})">Annuler</button>`);
+}
+function saveRemovePlants(cultureId,n){
+  const c=db.cultures.find(x=>x.id===cultureId);
+  const a=c?.allocations?.find(x=>Number(x.chamberNumber)===Number(n));
+  if(!c||!a) return;
+  const q=Number(getEl('removeQty').value||0);
+  if(q<1||q>Number(a.qty)){ alert('Quantité incorrecte.'); return; }
+  a.qty=Number(a.qty)-q;
+  if(a.qty<=0) recordChamberHistory(c,{chamberNumber:Number(n),qty:q},todayISO());
+  c.allocations=c.allocations.filter(x=>Number(x.qty)>0);
+  syncCultureAllocationFields(c);
+  if(!c.allocations.length){ c.status='Terminée'; c.endDate=todayISO(); }
+  closeModal(); persist({message:'Plants retirés'});
+}
+
+function openMoveAllocation(cultureId,fromN){
+  const c=db.cultures.find(x=>x.id===cultureId);
+  const source=allocationsOf(c).find(x=>x.chamberNumber===Number(fromN));
+  if(!c||!source) return;
+  const b=blockById(c.blockId);
+  const opts=Array.from({length:Number(b?.chambers||0)},(_,i)=>i+1)
+    .filter(n=>n!==Number(fromN)&&chamberRemaining(c.blockId,n)>0)
+    .map(n=>`<option value="${n}">${chamberCode(c.blockId,n)} — ${chamberRemaining(c.blockId,n)} libre(s)</option>`).join('');
+  if(!opts){ alert('Aucune autre chambre ne possède de place disponible.'); return; }
+  modal(`<h2>Déplacer · ${chamberCode(c.blockId,fromN)}</h2>
+    <p>${esc(varietyName(c.varietyId))} : ${source.qty} plant(s)</p>
+    <label>Vers la chambre</label><select id="moveTarget">${opts}</select>
+    <label>Nombre de plants à déplacer</label><input id="moveQty" type="number" min="1" max="${source.qty}" value="${source.qty}">
+    <br><button onclick="saveMoveAllocation('${cultureId}',${fromN})">Déplacer</button>
+    <button class="secondary" onclick="openChamber('${c.blockId}',${fromN})">Annuler</button>`);
+}
+function saveMoveAllocation(cultureId,fromN){
+  const c=db.cultures.find(x=>x.id===cultureId);
+  const source=c?.allocations?.find(x=>Number(x.chamberNumber)===Number(fromN));
+  if(!c||!source) return;
+
+  const target=Number(getEl('moveTarget').value);
+  const q=Number(getEl('moveQty').value||0);
+  const free=chamberRemaining(c.blockId,target);
+  if(q<1||q>Number(source.qty)||q>free){
+    alert(`Déplacement impossible. Place disponible : ${free}.`);
+    return;
+  }
+  source.qty=Number(source.qty)-q;
+  let dest=c.allocations.find(x=>Number(x.chamberNumber)===target);
+  if(dest) dest.qty=Number(dest.qty)+q;
+  else c.allocations.push({chamberNumber:target,qty:q});
+  c.allocations=c.allocations.filter(x=>Number(x.qty)>0);
+  syncCultureAllocationFields(c);
+  closeModal(); persist({message:'Plants déplacés'});
+}
+
+function releaseOneChamber(cultureId,n){
+  const c=db.cultures.find(x=>x.id===cultureId);
+  const a=allocationsOf(c).find(x=>x.chamberNumber===Number(n));
+  if(!c||!a) return;
+  if(!confirm(`Libérer ${chamberCode(c.blockId,n)} pour cette culture ?`)) return;
+  recordChamberHistory(c,a,todayISO());
+  c.allocations=c.allocations.filter(x=>Number(x.chamberNumber)!==Number(n));
+  syncCultureAllocationFields(c);
+  if(!c.allocations.length){ c.status='Terminée'; c.endDate=todayISO(); }
+  closeModal(); persist({message:'Chambre libérée'});
+}
+
+// ---------- 10. PLANNING ----------
+function openTask(){
+  modal(`<h2>Nouvelle tâche</h2>
+    <label>Titre</label><input id="ttitle" placeholder="ex. semis, récolte, nettoyage…">
+    <label>Date</label><input id="tdate" type="date" value="${todayISO()}">
+    <label>Variété</label><select id="tvar">${varietyOptions('',true)}</select>
+    <label>Bloc</label><select id="tblock">${blockOptions('',true)}</select>
+    <br><button onclick="addTask()">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function addTask(){
+  db.tasks.push({
+    id:uid('t'),title:getEl('ttitle').value.trim()||'Tâche',
+    date:getEl('tdate').value,varietyId:getEl('tvar').value,
+    blockId:getEl('tblock').value,done:false
+  });
+  closeModal(); persist({message:'Tâche ajoutée'});
+}
+function doneTask(id){
+  const t=db.tasks.find(x=>x.id===id);
+  if(t){ t.done=true; persist({message:'Tâche terminée'}); }
+}
+function deleteTask(id){
+  if(!confirm('Supprimer cette tâche ?')) return;
+  db.tasks=db.tasks.filter(t=>t.id!==id);
+  persist({message:'Tâche supprimée'});
+}
+function renderPlanning(){
+  const filter=getEl('planFilter')?.value||'all';
+  const today=new Date(); today.setHours(0,0,0,0);
+  let arr=db.tasks.filter(t=>!t.done&&t.date).sort((a,b)=>a.date.localeCompare(b.date));
+  if(filter!=='all'){
+    const max=new Date(today); max.setDate(max.getDate()+Number(filter));
+    arr=arr.filter(t=>{
+      const d=new Date(t.date+'T12:00:00');
+      return d>=today&&d<=max;
+    });
+  }
+  getEl('planningList').innerHTML=arr.length
+    ? arr.map(t=>`<div class="card"><div class="row">
+        <div><b>${fmt(t.date)} · ${esc(t.title)}</b><br><span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}</span></div>
+        <div class="fit toolbar"><button onclick="doneTask('${t.id}')">✓</button><button class="danger" onclick="deleteTask('${t.id}')">×</button></div>
+      </div></div>`).join('')
+    : '<div class="empty">Aucune tâche.</div>';
+}
+
+// ---------- 11. STOCK ----------
+function sortedStock(){
+  return [...db.stock].sort((a,b)=>byText(a.category||'Non classé',b.category||'Non classé')||byText(a.name,b.name));
+}
+function renderMovementHistory(stockId){
+  const arr=db.stockMovements.filter(m=>m.stockId===stockId).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  return arr.length
+    ? arr.map(m=>`<div class="item small"><b>${fmt(m.date)}</b> · ${m.type==='in'?'Entrée':'Sortie'} ${m.qty} · ${esc(m.reason||'')}</div>`).join('')
+    : '<div class="empty">Aucun mouvement.</div>';
+}
 function renderStock(){
-  document.getElementById('stockList').innerHTML=db.stock.length
-  ? db.stock.map(s=>`<div class="card">
+  getEl('stockList').innerHTML=db.stock.length
+    ? sortedStock().map(s=>`<div class="card">
       <div class="row"><div>
         <h3>${esc(s.name)}</h3>
         <span class="pill gray">${esc(s.category||'Non classé')}</span>
@@ -538,422 +1198,274 @@ function renderStock(){
       ${s.notes?`<p class="muted">${esc(s.notes)}</p>`:''}
       <details><summary>Historique des mouvements</summary>${renderMovementHistory(s.id)}</details>
     </div>`).join('')
-  : '<div class="empty">Aucun article de stock.</div>';
-}
-function renderMovementHistory(stockId){
-  let arr=(db.stockMovements||[]).filter(m=>m.stockId===stockId).sort((a,b)=>b.date.localeCompare(a.date));
-  return arr.length?arr.map(m=>`<div class="item small"><b>${fmt(m.date)}</b> · ${m.type==='in'?'Entrée':'Sortie'} ${m.qty} · ${esc(m.reason||'')}</div>`).join(''):'<div class="empty">Aucun mouvement.</div>';
+    : '<div class="empty">Aucun article de stock.</div>';
 }
 function stockFields(s={}){
-  const vopts=sortedVarieties().map(v=>`<option value="${v.id}" ${s.varietyId===v.id?'selected':''}>${esc(v.name)}</option>`).join('');
+  const categories=['Semences','Engrais','Substrat','Pots / paniers','Emballages','Consommables','Autre'];
   return `<label>Nom de l'article</label><input id="sname" value="${esc(s.name||'')}">
-  <label>Catégorie</label><select id="scategory">${['Semences','Engrais','Substrat','Pots / paniers','Emballages','Consommables','Autre'].map(x=>`<option ${s.category===x?'selected':''}>${x}</option>`).join('')}</select>
-  <label>Variété liée</label><select id="svariety"><option value="">—</option>${vopts}</select>
-  <div class="row"><div><label>Quantité</label><input id="sq" type="number" step=".01" value="${s.qty??0}"></div><div><label>Unité</label><input id="sunit" value="${esc(s.unit||'')}" placeholder="L, kg, g, graines, sachet..."></div></div>
-  <label>Seuil d'alerte</label><input id="smin" type="number" step=".01" value="${s.min??0}">
-  <label>Coût unitaire (€)</label><input id="scost" type="number" step=".01" value="${s.cost??0}">
-  <label>Fournisseur</label><input id="ssupplier" value="${esc(s.supplier||'')}">
-  <label>Date d'achat</label><input id="spurchase" type="date" value="${s.purchaseDate||''}">
-  <label>N° de lot</label><input id="slot" value="${esc(s.lot||'')}">
-  <div class="row"><div><label>Taux de germination (%)</label><input id="sgermrate" type="number" min="0" max="100" step=".1" value="${s.germinationRate??''}"></div>
-  <div><label>Date du taux / test de germination</label><input id="sgermdate" type="date" value="${s.germinationDate||''}"></div></div>
-  <div class="small muted">Permet de conserver le taux indiqué par le fournisseur avec sa date, même sans date limite.</div>
-  <label>Notes</label><textarea id="snotes">${esc(s.notes||'')}</textarea>`;
+    <label>Catégorie</label><select id="scategory">${categories.map(x=>`<option ${s.category===x?'selected':''}>${x}</option>`).join('')}</select>
+    <label>Variété liée</label><select id="svariety">${varietyOptions(s.varietyId||'',true)}</select>
+    <div class="row">
+      <div><label>Quantité</label><input id="sq" type="number" step=".01" value="${s.qty??0}"></div>
+      <div><label>Unité</label><input id="sunit" value="${esc(s.unit||'')}" placeholder="L, kg, g, graines, sachet…"></div>
+    </div>
+    <label>Seuil d'alerte</label><input id="smin" type="number" step=".01" value="${s.min??0}">
+    <label>Coût unitaire (€)</label><input id="scost" type="number" step=".01" value="${s.cost??0}">
+    <label>Fournisseur</label><input id="ssupplier" value="${esc(s.supplier||'')}">
+    <label>Date d'achat</label><input id="spurchase" type="date" value="${esc(s.purchaseDate||'')}">
+    <label>N° de lot</label><input id="slot" value="${esc(s.lot||'')}">
+    <div class="row">
+      <div><label>Taux de germination (%)</label><input id="sgermrate" type="number" min="0" max="100" step=".1" value="${s.germinationRate??''}"></div>
+      <div><label>Date du taux / test</label><input id="sgermdate" type="date" value="${esc(s.germinationDate||'')}"></div>
+    </div>
+    <div class="small muted">Conserve le taux indiqué par le fournisseur avec sa date, même sans date limite.</div>
+    <label>Notes</label><textarea id="snotes">${esc(s.notes||'')}</textarea>`;
 }
 function readStockFields(){
-  return {name:sname.value.trim(),category:scategory.value,varietyId:svariety.value,qty:Number(sq.value||0),unit:sunit.value.trim(),min:Number(smin.value||0),cost:Number(scost.value||0),supplier:ssupplier.value.trim(),purchaseDate:spurchase.value,lot:slot.value.trim(),germinationRate:sgermrate.value===''?'':Number(sgermrate.value),germinationDate:sgermdate.value,notes:snotes.value.trim()};
+  return {
+    name:getEl('sname').value.trim(),
+    category:getEl('scategory').value,
+    varietyId:getEl('svariety').value,
+    qty:Number(getEl('sq').value||0),
+    unit:getEl('sunit').value.trim(),
+    min:Number(getEl('smin').value||0),
+    cost:Number(getEl('scost').value||0),
+    supplier:getEl('ssupplier').value.trim(),
+    purchaseDate:getEl('spurchase').value,
+    lot:getEl('slot').value.trim(),
+    germinationRate:getEl('sgermrate').value===''?'':Number(getEl('sgermrate').value),
+    germinationDate:getEl('sgermdate').value,
+    notes:getEl('snotes').value.trim()
+  };
 }
-function openStock(){modal(`<h2>Nouvel article de stock</h2>${stockFields()}<br><button onclick="addStock()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`)}
-function addStock(){db.stock.push(Object.assign({id:uid('s')},readStockFields()));closeModal();save()}
-function openEditStock(id){let s=db.stock.find(x=>x.id===id);if(!s)return;modal(`<h2>Modifier le stock</h2>${stockFields(s)}<br><button onclick="saveStockEdit('${id}')">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`)}
-function saveStockEdit(id){let s=db.stock.find(x=>x.id===id);if(!s)return;Object.assign(s,readStockFields());closeModal();save()}
-function deleteStock(id){if(confirm('Supprimer cet article et son historique ?')){db.stock=db.stock.filter(s=>s.id!==id);db.stockMovements=(db.stockMovements||[]).filter(m=>m.stockId!==id);save()}}
+function openStock(){
+  modal(`<h2>Nouvel article de stock</h2>${stockFields()}
+    <br><button onclick="addStock()">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function addStock(){
+  db.stock.push(Object.assign({id:uid('s')},readStockFields()));
+  closeModal(); persist({message:'Article de stock ajouté'});
+}
+function openEditStock(id){
+  const s=db.stock.find(x=>x.id===id); if(!s) return;
+  modal(`<h2>Modifier le stock</h2>${stockFields(s)}
+    <br><button onclick="saveStockEdit('${id}')">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function saveStockEdit(id){
+  const s=db.stock.find(x=>x.id===id); if(!s) return;
+  Object.assign(s,readStockFields());
+  closeModal(); persist({message:'Stock modifié'});
+}
+function deleteStock(id){
+  if(!confirm('Supprimer cet article et son historique ?')) return;
+  db.stock=db.stock.filter(s=>s.id!==id);
+  db.stockMovements=db.stockMovements.filter(m=>m.stockId!==id);
+  persist({message:'Article supprimé — Annuler ?'});
+}
 function moveStock(id){
-  let s=db.stock.find(x=>x.id===id);
-  modal(`<h2>Mouvement : ${esc(s.name)}</h2><p>Stock actuel : <b>${s.qty} ${esc(s.unit)}</b></p>
-  <label>Date</label><input id="mdate" type="date" value="${new Date().toISOString().slice(0,10)}">
-  <label>Type</label><select id="mtype"><option value="in">Entrée</option><option value="out">Sortie</option></select>
-  <label>Quantité</label><input id="mq" type="number" min="0" step=".01">
-  <label>Motif / remarque</label><input id="mreason" placeholder="Achat, semis, utilisation...">
-  <br><button onclick="applyMove('${id}')">Valider</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+  const s=db.stock.find(x=>x.id===id); if(!s) return;
+  modal(`<h2>Mouvement : ${esc(s.name)}</h2>
+    <p>Stock actuel : <b>${s.qty} ${esc(s.unit)}</b></p>
+    <label>Date</label><input id="mdate" type="date" value="${todayISO()}">
+    <label>Type</label><select id="mtype"><option value="in">Entrée</option><option value="out">Sortie</option></select>
+    <label>Quantité</label><input id="mq" type="number" min="0" step=".01">
+    <label>Motif / remarque</label><input id="mreason" placeholder="Achat, semis, utilisation…">
+    <br><button onclick="applyMove('${id}')">Valider</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function applyMove(id){
-  let s=db.stock.find(x=>x.id===id),q=Number(mq.value||0);if(!s||q<=0)return;
-  if(mtype.value==='out'&&q>s.qty){alert('Stock insuffisant.');return;}
-  s.qty+=mtype.value==='in'?q:-q;
-  if(!Array.isArray(db.stockMovements))db.stockMovements=[];
-  db.stockMovements.push({id:uid('m'),stockId:id,date:mdate.value,type:mtype.value,qty:q,reason:mreason.value.trim()});
-  closeModal();save();
+  const s=db.stock.find(x=>x.id===id);
+  const q=Number(getEl('mq').value||0);
+  if(!s||q<=0){ alert('Renseigne une quantité supérieure à 0.'); return; }
+  if(getEl('mtype').value==='out'&&q>Number(s.qty)){ alert('Stock insuffisant.'); return; }
+  s.qty=Number(s.qty)+(getEl('mtype').value==='in'?q:-q);
+  db.stockMovements.push({
+    id:uid('m'),stockId:id,date:getEl('mdate').value,
+    type:getEl('mtype').value,qty:q,reason:getEl('mreason').value.trim()
+  });
+  closeModal(); persist({message:'Mouvement de stock enregistré'});
 }
 
+// ---------- 12. VENTES / COÛTS ----------
 function renderSales(){
-  let month=new Date().toISOString().slice(0,7);
-  let rev=db.sales.filter(s=>s.date.startsWith(month)).reduce((a,s)=>a+Number(s.total),0);
-  let costs=db.costs.filter(c=>c.date.startsWith(month)).reduce((a,c)=>a+Number(c.amount),0);
-  document.getElementById('salesMetrics').innerHTML=
-    `<div class="card metric"><b>${money(rev)}</b><small>CA du mois</small></div>
+  const month=todayISO().slice(0,7);
+  const revenue=db.sales.filter(s=>String(s.date||'').startsWith(month)).reduce((a,s)=>a+Number(s.total||0),0);
+  const costs=db.costs.filter(c=>String(c.date||'').startsWith(month)).reduce((a,c)=>a+Number(c.amount||0),0);
+
+  getEl('salesMetrics').innerHTML=
+    `<div class="card metric"><b>${money(revenue)}</b><small>CA du mois</small></div>
      <div class="card metric"><b>${money(costs)}</b><small>Coûts du mois</small></div>
-     <div class="card metric"><b>${money(rev-costs)}</b><small>Marge</small></div>`;
+     <div class="card metric"><b>${money(revenue-costs)}</b><small>Marge</small></div>`;
 
-  document.getElementById('salesList').innerHTML=db.sales.length
-  ? `<div class="card"><h3>Dernières ventes</h3>${db.sales.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(s=>`<div class="item"><b>${fmt(s.date)} · ${esc(s.product)}</b><br>${s.qty} ${esc(s.unit)} × ${money(s.unitPrice)} = <b>${money(s.total)}</b><br><span class="muted">${esc(s.customer||'Client non renseigné')} · ${esc(varietyName(s.varietyId))} · ${esc(blockName(s.blockId))}</span></div>`).join('')}</div>`
-  : '<div class="empty">Aucune vente.</div>';
+  getEl('salesList').innerHTML=db.sales.length
+    ? `<div class="card"><h3>Dernières ventes</h3>${[...db.sales].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(s=>
+      `<div class="item"><b>${fmt(s.date)} · ${esc(s.product)}</b><br>${s.qty} ${esc(s.unit)} × ${money(s.unitPrice)} = <b>${money(s.total)}</b><br>
+      <span class="muted">${esc(s.customer||'Client non renseigné')} · ${esc(varietyName(s.varietyId))} · ${esc(blockName(s.blockId))}</span></div>`).join('')}</div>`
+    : '<div class="empty">Aucune vente.</div>';
 
-  document.getElementById('costList').innerHTML=db.costs.length
-  ? `<div class="card"><h3>Derniers coûts</h3>${db.costs.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(c=>`<div class="item"><b>${fmt(c.date)} · ${esc(c.label)}</b> — ${money(c.amount)}<br><span class="muted">${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))}</span></div>`).join('')}</div>`
-  : '';
+  getEl('costList').innerHTML=db.costs.length
+    ? `<div class="card"><h3>Derniers coûts</h3>${[...db.costs].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(c=>
+      `<div class="item"><b>${fmt(c.date)} · ${esc(c.label)}</b> — ${money(c.amount)}<br>
+      <span class="muted">${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))}</span></div>`).join('')}</div>`
+    : '';
 }
 function openSale(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
-  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>Nouvelle vente</h2>
-  <label>Date</label><input id="sdate" type="date" value="${new Date().toISOString().slice(0,10)}">
-  <label>Produit</label><input id="sprod" placeholder="ex. tomate, basilic, bouquet...">
-  <label>Variété</label><select id="svar">${vopts}</select>
-  <label>Bloc</label><select id="sblock"><option value="">—</option>${bopts}</select>
-  <label>Client</label><input id="scustomer">
-  <div class="row">
-    <div><label>Quantité</label><input id="sqty" type="number" step=".01" value="1"></div>
-    <div><label>Unité</label><input id="sunit2" value="kg"></div>
-    <div><label>Prix unitaire</label><input id="suprice" type="number" step=".01" value="0"></div>
-  </div>
-  <br><button onclick="addSale()">Enregistrer</button>`);
+    <label>Date</label><input id="sdate" type="date" value="${todayISO()}">
+    <label>Produit</label><input id="sprod" placeholder="ex. tomate, basilic, bouquet…">
+    <label>Variété</label><select id="svar">${varietyOptions('',true)}</select>
+    <label>Bloc</label><select id="sblock">${blockOptions('',true)}</select>
+    <label>Client</label><input id="scustomer">
+    <div class="row">
+      <div><label>Quantité</label><input id="sqty" type="number" step=".01" value="1"></div>
+      <div><label>Unité</label><input id="sunit2" value="kg"></div>
+      <div><label>Prix unitaire</label><input id="suprice" type="number" step=".01" value="0"></div>
+    </div>
+    <br><button onclick="addSale()">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function addSale(){
-  let q=Number(sqty.value),p=Number(suprice.value);
-  db.sales.push({id:uid('sale'),date:sdate.value,product:sprod.value.trim(),varietyId:svar.value,blockId:sblock.value,customer:scustomer.value.trim(),qty:q,unit:sunit2.value.trim(),unitPrice:p,total:q*p});
-  closeModal();save();
+  const q=Number(getEl('sqty').value||0), p=Number(getEl('suprice').value||0);
+  db.sales.push({
+    id:uid('sale'),date:getEl('sdate').value,product:getEl('sprod').value.trim(),
+    varietyId:getEl('svar').value,blockId:getEl('sblock').value,
+    customer:getEl('scustomer').value.trim(),qty:q,unit:getEl('sunit2').value.trim(),
+    unitPrice:p,total:q*p
+  });
+  closeModal(); persist({message:'Vente enregistrée'});
 }
 function openCost(){
-  let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
-  let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>Ajouter un coût</h2>
-  <label>Date</label><input id="cdate" type="date" value="${new Date().toISOString().slice(0,10)}">
-  <label>Libellé</label><input id="clabel" placeholder="engrais, semences, emballage...">
-  <label>Montant (€)</label><input id="camount" type="number" step=".01" value="0">
-  <label>Variété</label><select id="cvar"><option value="">—</option>${vopts}</select>
-  <label>Bloc</label><select id="cblock"><option value="">—</option>${bopts}</select>
-  <br><button onclick="addCost()">Enregistrer</button>`);
+    <label>Date</label><input id="cdate" type="date" value="${todayISO()}">
+    <label>Libellé</label><input id="clabel" placeholder="engrais, semences, emballage…">
+    <label>Montant (€)</label><input id="camount" type="number" step=".01" value="0">
+    <label>Variété</label><select id="cvar">${varietyOptions('',true)}</select>
+    <label>Bloc</label><select id="cblock">${blockOptions('',true)}</select>
+    <br><button onclick="addCost()">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function addCost(){
-  db.costs.push({id:uid('cost'),date:cdate.value,label:clabel.value.trim(),amount:Number(camount.value),varietyId:cvar.value,blockId:cblock.value});
-  closeModal();save();
-}
-
-
-function sortedVarieties(){
-  return [...db.varieties].sort((a,b)=>{
-    const sa=(a.species||'Sans catégorie');
-    const sb=(b.species||'Sans catégorie');
-    const speciesCmp=sa.localeCompare(sb,'fr',{sensitivity:'base'});
-    if(speciesCmp!==0) return speciesCmp;
-    return (a.name||'').localeCompare((b.name||''),'fr',{sensitivity:'base'});
+  db.costs.push({
+    id:uid('cost'),date:getEl('cdate').value,label:getEl('clabel').value.trim(),
+    amount:Number(getEl('camount').value||0),varietyId:getEl('cvar').value,blockId:getEl('cblock').value
   });
-}
-function groupedVarieties(){
-  const groups={};
-  sortedVarieties().forEach(v=>{
-    const k=(v.species||'Sans catégorie').trim()||'Sans catégorie';
-    if(!groups[k]) groups[k]=[];
-    groups[k].push(v);
-  });
-  return Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0],'fr',{sensitivity:'base'}));
+  closeModal(); persist({message:'Coût enregistré'});
 }
 
+// ---------- 13. VARIÉTÉS ----------
 function renderVarieties(){
-  let el=document.getElementById('varietyList');
-  if(!el)return;
+  const el=getEl('varietyList'); if(!el) return;
   const groups=groupedVarieties();
   el.innerHTML=groups.length ? groups.map(([species,vars])=>`
     <div class="card">
       <h3>${esc(species)}</h3>
-      ${vars.map(v=>`
-        <div class="item">
-          <div class="row">
-            <div>
-              <b>${esc(v.name)}</b>
-              <div class="small muted">${esc(v.species||'Sans catégorie')}</div>
-            </div>
-            <div>
-              <button class="secondary fit" onclick="openEditVariety('${v.id}')">Modifier</button>
-              <button class="danger fit" onclick="deleteVariety('${v.id}')">×</button>
-            </div>
-          </div>
-        </div>`).join('')}
-    </div>`).join('')
-  : '<div class="empty">Aucune variété.</div>';
+      ${vars.map(v=>`<div class="item"><div class="row">
+        <div><b>${esc(v.name)}</b><div class="small muted">${esc(v.species||'Sans catégorie')}</div></div>
+        <div class="fit toolbar">
+          <button class="secondary" onclick="openEditVariety('${v.id}')">Modifier</button>
+          <button class="danger" onclick="deleteVariety('${v.id}')">×</button>
+        </div>
+      </div></div>`).join('')}
+    </div>`).join('') : '<div class="empty">Aucune variété.</div>';
 }
 function openVariety(){
-  modal(`<h2>Ajouter une variété</h2><label>Nom</label><input id="vname"><label>Espèce / catégorie</label><input id="vspecies"><br><button onclick="addVariety()">Ajouter</button>`);
+  modal(`<h2>Ajouter une variété</h2>
+    <label>Nom</label><input id="vname">
+    <label>Espèce / catégorie</label><input id="vspecies">
+    <br><button onclick="addVariety()">Ajouter</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function addVariety(){
-  db.varieties.push({id:uid('v'),name:vname.value.trim(),species:vspecies.value.trim()});
-  closeModal();save();
+  const name=getEl('vname').value.trim();
+  if(!name){ alert('Renseigne le nom de la variété.'); return; }
+  db.varieties.push({id:uid('v'),name,species:getEl('vspecies').value.trim()});
+  closeModal(); persist({message:'Variété ajoutée'});
 }
 function openEditVariety(id){
-  let v=db.varieties.find(x=>x.id===id); if(!v)return;
-  modal(`<h2>Modifier la variété</h2><label>Nom</label><input id="evname" value="${esc(v.name)}"><label>Espèce / catégorie</label><input id="evspecies" value="${esc(v.species||'')}"><br><button onclick="saveVarietyEdit('${id}')">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
+  const v=db.varieties.find(x=>x.id===id); if(!v) return;
+  modal(`<h2>Modifier la variété</h2>
+    <label>Nom</label><input id="evname" value="${esc(v.name)}">
+    <label>Espèce / catégorie</label><input id="evspecies" value="${esc(v.species||'')}">
+    <br><button onclick="saveVarietyEdit('${id}')">Enregistrer</button>
+    <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function saveVarietyEdit(id){
-  let v=db.varieties.find(x=>x.id===id); if(!v)return;
-  v.name=evname.value.trim(); v.species=evspecies.value.trim(); closeModal();save();
+  const v=db.varieties.find(x=>x.id===id); if(!v) return;
+  const name=getEl('evname').value.trim();
+  if(!name){ alert('Le nom ne peut pas être vide.'); return; }
+  v.name=name; v.species=getEl('evspecies').value.trim();
+  closeModal(); persist({message:'Variété modifiée'});
 }
 function deleteVariety(id){
-  const used=(db.cultures||[]).some(c=>c.varietyId===id)||(db.sales||[]).some(s=>s.varietyId===id)||(db.stock||[]).some(s=>s.varietyId===id);
-  if(used){alert('Cette variété est déjà utilisée. Retire d’abord les éléments liés.');return;}
-  if(confirm('Supprimer cette variété ?')){db.varieties=db.varieties.filter(v=>v.id!==id);save();}
+  const used=
+    db.cultures.some(x=>x.varietyId===id) ||
+    db.sales.some(x=>x.varietyId===id) ||
+    db.stock.some(x=>x.varietyId===id) ||
+    db.costs.some(x=>x.varietyId===id) ||
+    db.tasks.some(x=>x.varietyId===id) ||
+    db.chamberHistory.some(x=>x.varietyId===id);
+  if(used){ alert('Cette variété est déjà utilisée dans l’application. Elle ne peut pas être supprimée.'); return; }
+  if(!confirm('Supprimer cette variété ?')) return;
+  db.varieties=db.varieties.filter(v=>v.id!==id);
+  persist({message:'Variété supprimée — Annuler ?'});
 }
 
+// ---------- 14. SAUVEGARDE ----------
 function exportData(){
-  let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
-  let a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='gestion-serre-sauvegarde.json';a.click();URL.revokeObjectURL(a.href);
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`gestion-serre-sauvegarde-${todayISO()}.json`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-function importData(e){
-  let f=e.target.files[0]; if(!f)return;
-  let r=new FileReader();
-  r.onload=()=>{
+function importData(event){
+  const file=event.target.files?.[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
     try{
-      let x=JSON.parse(r.result);
-      if(!x.varieties||!x.cultures||!x.blocks) throw Error();
-      db=x;save();alert('Sauvegarde importée.');
-    }catch(_){alert('Fichier de sauvegarde invalide.')}
-  };
-  r.readAsText(f);
-}
-
-
-// ===== V7 : occupation partielle des chambres =====
-function migrateAllocationsV7(){
-  (db.cultures||[]).forEach(c=>{
-    if(!Array.isArray(c.allocations)){
-      let nums=cultureChambers(c);
-      let remaining=Math.max(0,Number(c.qty||0));
-      c.allocations=nums.map((n,i)=>{
-        let q=nums.length===1 ? Math.min(20,remaining) : Math.min(20,remaining);
-        remaining=Math.max(0,remaining-q);
-        return {chamberNumber:Number(n),qty:q};
-      });
+      const parsed=JSON.parse(reader.result);
+      if(!parsed||!Array.isArray(parsed.varieties)||!Array.isArray(parsed.cultures)||!Array.isArray(parsed.blocks)) throw new Error();
+      const previous=localStorage.getItem(KEY);
+      if(previous) localStorage.setItem(UNDO_KEY,previous);
+      db=migrateData(parsed);
+      localStorage.setItem(KEY,JSON.stringify(db));
+      localStorage.setItem(SAVE_TIME_KEY,new Date().toISOString());
+      renderAll(); updateSaveIndicator();
+      alert('Sauvegarde importée avec succès.');
+    }catch(_){
+      alert('Fichier de sauvegarde invalide.');
+    }finally{
+      event.target.value='';
     }
-  });
-  localStorage.setItem(KEY,JSON.stringify(db));
-}
-migrateAllocationsV7();
-
-function allocationsOf(c){
-  if(Array.isArray(c.allocations)) return c.allocations.filter(a=>Number(a.chamberNumber)>0 && Number(a.qty)>0);
-  return [];
-}
-function cultureChambers(c){ return allocationsOf(c).map(a=>Number(a.chamberNumber)); }
-
-function chamberWaiting(blockId,n){
- return (db.cultures||[]).some(c=>c.blockId===blockId&&c.status==='En attente'&&allocationsOf(c).some(a=>Number(a.chamberNumber)===Number(n)));
-}
-function chamberReserved(blockId,n,excludeCultureId=''){
- return (db.cultures||[]).filter(c=>c.id!==excludeCultureId&&c.blockId===blockId&&c.status==='En attente')
- .reduce((sum,c)=>sum+allocationsOf(c).filter(a=>Number(a.chamberNumber)===Number(n)).reduce((s,a)=>s+Number(a.qty||0),0),0);
+  };
+  reader.readAsText(file);
 }
 
-function chamberUsed(blockId,n,excludeCultureId=''){
-  return (db.cultures||[]).filter(c=>c.id!==excludeCultureId&&c.blockId===blockId&&c.status!=='Terminée')
-    .reduce((sum,c)=>sum+allocationsOf(c).filter(a=>Number(a.chamberNumber)===Number(n)).reduce((s,a)=>s+Number(a.qty||0),0),0);
-}
-function chamberRemaining(blockId,n,excludeCultureId=''){ return Math.max(0,20-chamberUsed(blockId,n,excludeCultureId)-chamberReserved(blockId,n,excludeCultureId)); }
-function chamberOccupants(blockId,n){
-  return (db.cultures||[]).filter(c=>c.blockId===blockId&&c.status!=='Terminée')
-    .map(c=>({culture:c,allocation:allocationsOf(c).find(a=>Number(a.chamberNumber)===Number(n))}))
-    .filter(x=>x.allocation);
-}
+// ---------- 15. INITIALISATION ----------
+function init(){
+  loadData();
 
-function renderChamberMap(){
-  let el=document.getElementById('chamberMap'); if(!el)return;
-
-  el.innerHTML=db.blocks.map(b=>{
-    const total=Number(b.chambers||0);
-    const firstColCount=Math.ceil(total/2);
-    const secondStart=firstColCount+1;
-
-    const buttonHtml=(n)=>{
-      let used=chamberUsed(b.id,n),free=20-used,waiting=chamberWaiting(b.id,n);
-      let stateClass = waiting ? 'waitingYellow' : (used===0 ? 'secondary' : (free===0 ? 'danger' : 'partialGreen'));
-      let label = waiting ? (used===0?'En attente':`${free} libres · attente`) : (used===0?'Libre':(free===0?'Complète':`${free} libres`));
-      return `<button class="${stateClass}" style="padding:8px 4px" onclick="openChamber('${b.id}',${n})">
-        <b>${chamberCode(b.id,n)}</b><br>
-        <span style="font-size:11px">${used}/20 · ${label}</span>
-      </button>`;
-    };
-
-    const left=Array.from({length:firstColCount},(_,i)=>i+1);
-    const right=Array.from({length:total-firstColCount},(_,i)=>secondStart+i);
-
-    return `<div class="card"><h3>${esc(b.name)}</h3>
-      <div class="small muted">Chaque chambre possède 20 emplacements.</div>
-      <div class="chamberColumns">
-        <div class="chamberColumn">${left.map(buttonHtml).join('')}</div>
-        <div class="chamberColumn">${right.map(buttonHtml).join('')}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function openChamber(b,n){
- let occ=chamberOccupants(b,n),code=chamberCode(b,n),used=chamberUsed(b,n),free=20-used;
- let lines=occ.length?occ.map(x=>`<div class="item"><b>${esc(varietyName(x.culture.varietyId))}</b> — ${x.allocation.qty} plant(s)${x.culture.status==='En attente'?' · <b>En attente</b>':''}
- <br><span class="small muted">${fmt(x.culture.planting)||'Date non renseignée'}</span>
- <div class="toolbar" style="margin-top:6px"><button class="secondary" onclick="openEditCulture('${x.culture.id}')">Modifier</button>
- <button class="secondary" onclick="releaseOneChamber('${x.culture.id}',${n})">Libérer cette affectation</button></div></div>`).join('')
- : '<div class="empty">Aucune culture dans cette chambre.</div>';
- modal(`<h2>${code}</h2><p><b>${used}/20 occupés</b> · ${free} emplacement(s) disponible(s)</p>${lines}
- <button class="secondary" onclick="closeModal()">Fermer</button>`);
-}
-function allocationRows(blockId,current=[],cultureId=''){
-  let b=db.blocks.find(x=>x.id===blockId); if(!b)return '';
-  let rows=current.length?current:[{chamberNumber:'',qty:''}];
-  return rows.map((a,i)=>allocationRowHtml(blockId,a.chamberNumber,a.qty,cultureId,i)).join('');
-}
-function allocationRowHtml(blockId,n='',q='',cultureId='',idx=0){
- let b=db.blocks.find(x=>x.id===blockId); if(!b)return '';
- let opts=Array.from({length:b.chambers||0},(_,i)=>{
-   let num=i+1,free=chamberRemaining(blockId,num,cultureId),sel=Number(n)===num;
-   return `<option value="${num}" ${sel?'selected':''} ${free<=0&&!sel?'disabled':''}>${chamberCode(blockId,num)} — ${free} libre(s)</option>`;
- }).join('');
- return `<div class="row allocRow" style="align-items:end;margin:7px 0">
-   <div><label>Chambre</label><select class="allocChamber"><option value="">— choisir —</option>${opts}</select></div>
-   <div><label>Plants</label><input class="allocQty" type="number" min="1" max="20" value="${q||''}" placeholder="1 à 20"></div>
-   <button type="button" class="danger fit" onclick="this.closest('.allocRow').remove()">×</button>
- </div>`;
-}
-function addAllocationRow(blockSelectId,hostId,cultureId=''){
- let bid=document.getElementById(blockSelectId).value,host=document.getElementById(hostId);
- host.insertAdjacentHTML('beforeend',allocationRowHtml(bid,'','',cultureId,host.querySelectorAll('.allocRow').length));
-}
-function readAllocations(hostId,blockId,cultureId=''){
- let rows=[...document.querySelectorAll(`#${hostId} .allocRow`)],arr=[],seen=new Set();
- for(let r of rows){
-   let n=Number(r.querySelector('.allocChamber').value),q=Number(r.querySelector('.allocQty').value);
-   if(!n&&!q)continue;
-   if(!n||q<=0){alert('Renseigne la chambre et le nombre de plants.');return null;}
-   if(seen.has(n)){alert('La même chambre est indiquée deux fois.');return null;}
-   let free=chamberRemaining(blockId,n,cultureId);
-   if(q>free){alert(`${chamberCode(blockId,n)} : seulement ${free} emplacement(s) disponible(s).`);return null;}
-   seen.add(n);arr.push({chamberNumber:n,qty:q});
- }
- if(!arr.length){alert('Ajoute au moins une chambre.');return null;}
- return arr;
-}
-function refreshNewAllocations(){
- let h=document.getElementById('newAllocHost');if(h)h.innerHTML=allocationRows(fblock.value,[],'');
-}
-function openCulture(){
- let vopts=sortedVarieties().map(v=>`<option value="${v.id}">${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
- let bopts=db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
- modal(`<h2>Nouvelle culture / lot</h2>
- <label>Variété</label><select id="fvar">${vopts}</select>
- <label>GrowStream</label><select id="fblock" onchange="refreshNewAllocations()">${bopts}</select>
- <div id="newAllocHost"></div>
- <button type="button" class="secondary" onclick="addAllocationRow('fblock','newAllocHost')">+ Ajouter une chambre</button>
- <div class="small muted">Indique le nombre de plants dans chaque chambre. Maximum : 20 emplacements par chambre.</div>
- <label>Date de semis</label><input id="fsow" type="date">
- <label>Date de plantation / mise en système</label><input id="fplant" type="date">
- <label>Date de récolte prévue</label><input id="fharv" type="date">
- <label>Statut</label><select id="fstatus"><option>Active</option><option>En attente</option><option>Terminée</option></select>
- <label>Observations</label><textarea id="fnote"></textarea>
- <br><button onclick="addCulture()">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
- refreshNewAllocations();
-}
-function addCulture(){
- let alloc=readAllocations('newAllocHost',fblock.value,'');if(!alloc)return;
- let qty=alloc.reduce((s,a)=>s+a.qty,0);
- let c={id:uid('c'),varietyId:fvar.value,blockId:fblock.value,system:'GrowStreamPro',qty,
-   allocations:alloc,chamberNumbers:alloc.map(a=>a.chamberNumber),chambers:alloc.map(a=>a.chamberNumber).join(','),
-   sowing:fsow.value,planting:fplant.value,harvest:fharv.value,status:fstatus.value,notes:fnote.value.trim()};
- db.cultures.push(c);
- if(c.sowing)db.tasks.push({id:uid('t'),title:'Semis',date:c.sowing,varietyId:c.varietyId,blockId:c.blockId,done:true});
- if(c.planting)db.tasks.push({id:uid('t'),title:'Mise en système / plantation',date:c.planting,varietyId:c.varietyId,blockId:c.blockId,done:false});
- if(c.harvest)db.tasks.push({id:uid('t'),title:'Récolte prévue',date:c.harvest,varietyId:c.varietyId,blockId:c.blockId,done:false});
- closeModal();save();
-}
-function openEditCulture(id){
- let c=db.cultures.find(x=>x.id===id);if(!c)return;
- let vopts=sortedVarieties().map(v=>`<option value="${v.id}" ${v.id===c.varietyId?'selected':''}>${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`).join('');
- let bopts=db.blocks.map(b=>`<option value="${b.id}" ${b.id===c.blockId?'selected':''}>${esc(b.name)}</option>`).join('');
- modal(`<h2>Modifier la culture</h2>
- <label>Variété</label><select id="evar">${vopts}</select>
- <label>GrowStream</label><select id="eblock" onchange="refreshEditAllocations('${c.id}')">${bopts}</select>
- <div id="editAllocHost"></div>
- <button type="button" class="secondary" onclick="addAllocationRow('eblock','editAllocHost','${c.id}')">+ Ajouter une chambre</button>
- <div class="small muted">Tu peux corriger une chambre ou modifier le nombre de plants.</div>
- <label>Date de semis</label><input id="esow" type="date" value="${c.sowing||''}">
- <label>Date de plantation / mise en système</label><input id="eplant" type="date" value="${c.planting||''}">
- <label>Date de récolte prévue</label><input id="eharv" type="date" value="${c.harvest||''}">
- <label>Statut</label><select id="estatus"><option ${c.status==='Active'?'selected':''}>Active</option><option ${c.status==='En attente'?'selected':''}>En attente</option><option ${c.status==='Terminée'?'selected':''}>Terminée</option></select>
- <label>Observations</label><textarea id="enote">${esc(c.notes||'')}</textarea>
- <br><button onclick="saveCultureEdit('${c.id}')">Enregistrer</button> <button class="secondary" onclick="closeModal()">Annuler</button>`);
- refreshEditAllocations(id);
-}
-function refreshEditAllocations(id){
- let c=db.cultures.find(x=>x.id===id),h=document.getElementById('editAllocHost');if(!c||!h)return;
- h.innerHTML=allocationRows(eblock.value,eblock.value===c.blockId?allocationsOf(c):[],id);
-}
-function saveCultureEdit(id){
- let c=db.cultures.find(x=>x.id===id);if(!c)return;
- let alloc=readAllocations('editAllocHost',eblock.value,id);if(!alloc&&estatus.value!=='Terminée')return;
- alloc=alloc||[];
- c.varietyId=evar.value;c.blockId=eblock.value;c.allocations=alloc;c.chamberNumbers=alloc.map(a=>a.chamberNumber);c.chambers=c.chamberNumbers.join(',');
- c.qty=alloc.reduce((s,a)=>s+a.qty,0);c.sowing=esow.value;c.planting=eplant.value;c.harvest=eharv.value;c.status=estatus.value;c.notes=enote.value.trim();
- if(c.status==='Terminée'&&!c.endDate)c.endDate=new Date().toISOString().slice(0,10);
- if(c.status!=='Terminée')c.endDate='';
- closeModal();save();
-}
-function releaseOneChamber(id,n){
- let c=db.cultures.find(x=>x.id===id);if(!c)return;
- if(!confirm(`Libérer ${chamberCode(c.blockId,n)} pour cette culture ?`))return;
- c.allocations=allocationsOf(c).filter(a=>Number(a.chamberNumber)!==Number(n));
- c.chamberNumbers=c.allocations.map(a=>a.chamberNumber);c.chambers=c.chamberNumbers.join(',');
- c.qty=c.allocations.reduce((s,a)=>s+a.qty,0);
- if(!c.allocations.length){c.status='Terminée';c.endDate=new Date().toISOString().slice(0,10);}
- closeModal();save();
-}
-function finishCulture(id){
- let c=db.cultures.find(x=>x.id===id);if(!c)return;
- if(!confirm('Terminer cette culture et libérer toutes ses chambres ?'))return;
- c.status='Terminée';c.endDate=new Date().toISOString().slice(0,10);closeModal();save();
-}
-function renderCultures(){
- let el=document.getElementById('cultureList');
- el.innerHTML=db.cultures.length?db.cultures.map(c=>{
-   let al=allocationsOf(c).map(a=>`${chamberCode(c.blockId,a.chamberNumber)} : ${a.qty}/20`).join(' · ');
-   return `<div class="card"><div class="row"><div><h3>${esc(varietyName(c.varietyId))}</h3><span class="pill">${esc(blockName(c.blockId))}</span></div>
-   <div><button class="secondary fit" onclick="openEditCulture('${c.id}')">Modifier</button> <button class="danger fit" onclick="delCulture('${c.id}')">×</button></div></div>
-   <p><b>${c.qty||0}</b> plants · statut <b>${esc(c.status||'Active')}</b></p>
-   ${al?`<p class="small"><b>Chambres :</b> ${al}</p>`:''}
-   <p class="small">Semis : ${fmt(c.sowing)||'—'} · Mise en système : ${fmt(c.planting)||'—'} · Récolte prévue : ${fmt(c.harvest)||'—'}${c.endDate?` · Fin : ${fmt(c.endDate)}`:''}</p>
-   ${c.notes?`<p class="muted">${esc(c.notes)}</p>`:''}</div>`;
- }).join(''):'<div class="empty">Aucune culture. Ajoute ton premier lot.</div>';
-}
-
-renderAll();
-
-(function(){
-  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
-  if(standalone && !history.state){
-    history.replaceState({view:localStorage.getItem(NAV_KEY)||'dashboard'},'',location.href);
+  // L'historique commence toujours sur Accueil : sur Android,
+  // Retour depuis une autre rubrique ramène donc à l'accueil au lieu de fermer l'app.
+  const saved=localStorage.getItem(NAV_KEY)||'dashboard';
+  history.replaceState({view:'dashboard'},'',location.href);
+  if(saved!=='dashboard'){
+    history.pushState({view:saved},'',location.href);
+    activateView(saved);
+  }else{
+    activateView('dashboard');
   }
-})();
 
-</script>
-<script>
-if('serviceWorker' in navigator && location.protocol!=='file:'){
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
 }
 
-(function(){
-  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
-  if(standalone && !history.state){
-    history.replaceState({view:localStorage.getItem(NAV_KEY)||'dashboard'},'',location.href);
-  }
-})();
-
+init();
 </script>
 </body>
 </html>
