@@ -1,36 +1,33 @@
-GESTION SERRE — V12 CONSOLIDÉE
+GESTION SERRE — V13 CONSOLIDÉE
+Bibliothèque des cultures
 
-Nouvelle organisation des variétés dans Outils :
-
+Modules :
 1. Légumes feuilles
 2. Légumes fruits
 3. Légumes racines
 4. Légumes grains
-5. Fleurs comestibles
-6. Vivaces
+5. Légumes bulbes / tiges
+6. Aromatiques
+7. Fleurs comestibles
+8. Vivaces
 
-Organisation :
-Module → Espèce / catégorie → Variété
+Nouveautés :
+- module Aromatiques ;
+- module Légumes bulbes / tiges ;
+- recherche instantanée ;
+- filtre par module ;
+- filtre Actives / Archivées / Toutes ;
+- archivage et réactivation sans perdre l'historique ;
+- détection des doublons Espèce + Variété ;
+- déplacement simple d'une variété vers un autre module ;
+- fournisseur habituel facultatif ;
+- durée indicative de germination facultative ;
+- jours avant récolte facultatifs ;
+- notes culturales facultatives ;
+- les variétés archivées sont masquées des nouvelles sélections mais restent conservées ;
+- migration automatique des anciennes variétés.
 
-Exemples :
-- Légumes fruits → Tomate → Moskvitch
-- Légumes feuilles → Cresson → Cresson de fontaine
-- Légumes grains → Haricot → Haricots nains
-- Vivaces → Myrtille → Patriot
+Classement :
+Module → Espèce → Variété, avec tri alphabétique.
 
-Les modules sont présentés sous forme de volets repliables avec le nombre de variétés.
-Dans chaque module :
-- les espèces sont classées alphabétiquement ;
-- les variétés sont classées alphabétiquement.
-
-Ajout / modification d'une variété :
-- choix obligatoire du module dans une liste ;
-- saisie de l'espèce / catégorie ;
-- saisie du nom de la variété.
-
-Migration :
-- les variétés existantes reçoivent automatiquement un module quand celui-ci peut être reconnu ;
-- les variétés non reconnues apparaissent temporairement dans « À classer » afin de ne jamais être rangées dans une mauvaise catégorie ;
-- aucune donnée existante n'est supprimée.
-
-Toutes les fonctions de la V11 Consolidée sont conservées.
+Toutes les fonctions de la V12 Consolidée sont conservées.

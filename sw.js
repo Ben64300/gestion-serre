@@ -1,4 +1,4 @@
-const CACHE='gestion-serre-v12-consolidee-1';
+const CACHE='gestion-serre-v13-bibliotheque-1';
 const ASSETS=['./','./index.html','./manifest.json'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
