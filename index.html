@@ -72,6 +72,16 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 .actionGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
 @media(max-width:430px){.filterGrid{grid-template-columns:1fr}.filterGrid .full{grid-column:auto}}
 
+
+/* V12 : modules de variétés */
+.varietyModule{margin:10px 0}
+.varietyModule summary{cursor:pointer;font-weight:800;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.varietyModule summary::-webkit-details-marker{display:none}
+.varietyModule summary .count{font-size:12px;font-weight:700;color:var(--muted);background:#eef3ef;border-radius:999px;padding:4px 8px}
+.speciesGroup{margin:12px 0 4px;border-top:1px solid var(--border);padding-top:10px}
+.speciesGroup:first-of-type{border-top:0;padding-top:4px}
+.speciesGroup h4{margin:0 0 5px;font-size:14px}
+
 </style>
 </head>
 <body>
@@ -170,7 +180,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V11 Consolidée</h3>
+    <h3>À propos de cette V12 Consolidée</h3>
     <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
   </div>
 </section>
@@ -193,7 +203,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V11 CONSOLIDÉE
+   GESTION SERRE — V12 CONSOLIDÉE
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -209,7 +219,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 11;
+const APP_VERSION = 12;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -220,6 +230,45 @@ const BLOCKS_DEFAULT = [
   {id:'b1', name:'GrowStreamPro L1120', system:'GrowStreamPro', capacity:1120, chambers:56, plantsPerChamber:20, chamberLength:4, prefix:'L'},
   {id:'b2', name:'GrowStreamPro S1200', system:'GrowStreamPro', capacity:1200, chambers:60, plantsPerChamber:20, chamberLength:4, prefix:'S'}
 ];
+
+
+const VARIETY_MODULES = [
+  'Légumes feuilles',
+  'Légumes fruits',
+  'Légumes racines',
+  'Légumes grains',
+  'Fleurs comestibles',
+  'Vivaces'
+];
+
+function inferVarietyModule(v){
+  const text=`${v?.species||''} ${v?.name||''}`.toLocaleLowerCase('fr');
+
+  if(/myrtil|frambo|fraisier|fraise|groseill|cassis|pacan|asimin|pistach|arbuste|arbre fruit|vivace/.test(text))
+    return 'Vivaces';
+
+  if(/capuc|pens[ée]e|souci|calendula|bourrache|tag[eè]te|œillet|oeillet|cosmos|bleuet|chrysanth|hibiscus|fleur comest/.test(text))
+    return 'Fleurs comestibles';
+
+  if(/haricot|pois(?!son)|f[eè]ve|ma[iï]s|lentille|soja|pois chiche|grain/.test(text))
+    return 'Légumes grains';
+
+  if(/radis|carotte|betterave|navet|panais|rutabaga|racine|c[eé]leri[- ]?rave|patate douce/.test(text))
+    return 'Légumes racines';
+
+  if(/tomate|poivron|piment|aubergine|concombre|courgette|courge|melon|past[eè]que|okra|gombo|fruit/.test(text))
+    return 'Légumes fruits';
+
+  if(/chou|cresson|[ée]pinard|moutarde|pak cho[iï]|shiso|cerfeuil|basilic|laitue|salade|roquette|m[aâ]che|blette|persil|coriandre|feuille|kangkong/.test(text))
+    return 'Légumes feuilles';
+
+  return '';
+}
+
+function moduleRank(name){
+  const i=VARIETY_MODULES.indexOf(name);
+  return i<0 ? VARIETY_MODULES.length : i;
+}
 
 const DEFAULT_VARIETIES = [
   ['v1','Chou chinois Atsuko','Chou chinois'],
@@ -244,7 +293,7 @@ const DEFAULT_VARIETIES = [
   ['v20','Purple Bumblebee','Tomate cerise'],
   ['v21','Tomate noire','Tomate'],
   ['v22','Mirabelle blanche','Tomate cerise']
-].map(x=>({id:x[0],name:x[1],species:x[2]}));
+].map(x=>{const v={id:x[0],name:x[1],species:x[2]};v.module=inferVarietyModule(v);return v;});
 
 const SEED = {
   schemaVersion: APP_VERSION,
@@ -377,6 +426,11 @@ function migrateData(raw){
   });
 
   x.varieties = Array.isArray(x.varieties) ? x.varieties : clone(DEFAULT_VARIETIES);
+  x.varieties = x.varieties.map(v=>{
+    const item=Object.assign({id:uid('v'),name:'',species:'',module:''},v);
+    if(!item.module) item.module=inferVarietyModule(item);
+    return item;
+  });
   x.cultures = Array.isArray(x.cultures) ? x.cultures : [];
   x.tasks = Array.isArray(x.tasks) ? x.tasks : [];
   x.stock = Array.isArray(x.stock) ? x.stock : [];
@@ -489,23 +543,57 @@ function closeModal(){ getEl('modal')?.classList.remove('open'); }
 // ---------- 5. TRI DES VARIÉTÉS ----------
 function sortedVarieties(){
   return [...db.varieties].sort((a,b)=>{
-    const c=byText(a.species||'Sans catégorie',b.species||'Sans catégorie');
-    return c || byText(a.name,b.name);
+    const mr=moduleRank(a.module)-moduleRank(b.module);
+    if(mr) return mr;
+    const moduleCmp=byText(a.module||'À classer',b.module||'À classer');
+    if(moduleCmp) return moduleCmp;
+    const speciesCmp=byText(a.species||'Sans espèce',b.species||'Sans espèce');
+    return speciesCmp || byText(a.name,b.name);
   });
 }
 function groupedVarieties(){
-  const groups=new Map();
+  const modules=new Map();
+  VARIETY_MODULES.forEach(m=>modules.set(m,new Map()));
+  const unclassified=new Map();
+
   sortedVarieties().forEach(v=>{
-    const k=(v.species||'Sans catégorie').trim()||'Sans catégorie';
-    if(!groups.has(k)) groups.set(k,[]);
-    groups.get(k).push(v);
+    const moduleName=VARIETY_MODULES.includes(v.module)?v.module:'À classer';
+    const target=moduleName==='À classer'?unclassified:modules.get(moduleName);
+    const species=(v.species||'Sans espèce').trim()||'Sans espèce';
+    if(!target.has(species)) target.set(species,[]);
+    target.get(species).push(v);
   });
-  return [...groups.entries()].sort((a,b)=>byText(a[0],b[0]));
+
+  const out=[];
+  VARIETY_MODULES.forEach(moduleName=>{
+    const speciesMap=modules.get(moduleName);
+    out.push({
+      module:moduleName,
+      species:[...speciesMap.entries()]
+        .sort((a,b)=>byText(a[0],b[0]))
+        .map(([name,vars])=>({name,vars:[...vars].sort((a,b)=>byText(a.name,b.name))}))
+    });
+  });
+  if(unclassified.size){
+    out.push({
+      module:'À classer',
+      species:[...unclassified.entries()]
+        .sort((a,b)=>byText(a[0],b[0]))
+        .map(([name,vars])=>({name,vars:[...vars].sort((a,b)=>byText(a.name,b.name))}))
+    });
+  }
+  return out;
 }
 function varietyOptions(selected='',blank=false){
-  return (blank?'<option value="">—</option>':'') + sortedVarieties().map(v=>
-    `<option value="${v.id}" ${v.id===selected?'selected':''}>${esc(v.species||'Sans catégorie')} — ${esc(v.name)}</option>`
-  ).join('');
+  let html=blank?'<option value="">—</option>':'';
+  groupedVarieties().forEach(group=>{
+    if(!group.species.length) return;
+    const options=group.species.flatMap(s=>s.vars).map(v=>
+      `<option value="${v.id}" ${v.id===selected?'selected':''}>${esc(v.species||'Sans espèce')} — ${esc(v.name)}</option>`
+    ).join('');
+    html+=`<optgroup label="${esc(group.module)}">${options}</optgroup>`;
+  });
+  return html;
 }
 function blockOptions(selected='',blank=false){
   return (blank?'<option value="">—</option>':'') + db.blocks.map(b=>
@@ -1358,36 +1446,56 @@ function addCost(){
 function renderVarieties(){
   const el=getEl('varietyList'); if(!el) return;
   const groups=groupedVarieties();
-  el.innerHTML=groups.length ? groups.map(([species,vars])=>`
-    <div class="card">
-      <h3>${esc(species)}</h3>
-      ${vars.map(v=>`<div class="item"><div class="row">
-        <div><b>${esc(v.name)}</b><div class="small muted">${esc(v.species||'Sans catégorie')}</div></div>
-        <div class="fit toolbar">
-          <button class="secondary" onclick="openEditVariety('${v.id}')">Modifier</button>
-          <button class="danger" onclick="deleteVariety('${v.id}')">×</button>
-        </div>
-      </div></div>`).join('')}
-    </div>`).join('') : '<div class="empty">Aucune variété.</div>';
+
+  el.innerHTML=groups.map((group,index)=>{
+    const count=group.species.reduce((sum,s)=>sum+s.vars.length,0);
+    const speciesHtml=group.species.length
+      ? group.species.map(s=>`<div class="speciesGroup">
+          <h4>${esc(s.name)}</h4>
+          ${s.vars.map(v=>`<div class="item"><div class="row">
+            <div><b>${esc(v.name)}</b></div>
+            <div class="fit toolbar">
+              <button class="secondary" onclick="openEditVariety('${v.id}')">Modifier</button>
+              <button class="danger" onclick="deleteVariety('${v.id}')">×</button>
+            </div>
+          </div></div>`).join('')}
+        </div>`).join('')
+      : '<div class="empty">Aucune variété dans ce module.</div>';
+
+    return `<details class="card varietyModule" ${index===0?'open':''}>
+      <summary><span>${esc(group.module)}</span><span class="count">${count} variété${count>1?'s':''}</span></summary>
+      ${speciesHtml}
+    </details>`;
+  }).join('');
+}
+function moduleOptions(selected=''){
+  return VARIETY_MODULES.map(m=>`<option value="${esc(m)}" ${m===selected?'selected':''}>${esc(m)}</option>`).join('');
 }
 function openVariety(){
   modal(`<h2>Ajouter une variété</h2>
-    <label>Nom</label><input id="vname">
-    <label>Espèce / catégorie</label><input id="vspecies">
+    <label>Module</label><select id="vmodule">${moduleOptions()}</select>
+    <label>Espèce / catégorie</label><input id="vspecies" placeholder="ex. Tomate, Cresson, Radis…">
+    <label>Nom de la variété</label><input id="vname">
     <br><button onclick="addVariety()">Ajouter</button>
     <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function addVariety(){
   const name=getEl('vname').value.trim();
   if(!name){ alert('Renseigne le nom de la variété.'); return; }
-  db.varieties.push({id:uid('v'),name,species:getEl('vspecies').value.trim()});
+  db.varieties.push({
+    id:uid('v'),
+    name,
+    species:getEl('vspecies').value.trim(),
+    module:getEl('vmodule').value
+  });
   closeModal(); persist({message:'Variété ajoutée'});
 }
 function openEditVariety(id){
   const v=db.varieties.find(x=>x.id===id); if(!v) return;
   modal(`<h2>Modifier la variété</h2>
-    <label>Nom</label><input id="evname" value="${esc(v.name)}">
+    <label>Module</label><select id="evmodule">${moduleOptions(v.module||inferVarietyModule(v)||VARIETY_MODULES[0])}</select>
     <label>Espèce / catégorie</label><input id="evspecies" value="${esc(v.species||'')}">
+    <label>Nom de la variété</label><input id="evname" value="${esc(v.name)}">
     <br><button onclick="saveVarietyEdit('${id}')">Enregistrer</button>
     <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
@@ -1395,7 +1503,9 @@ function saveVarietyEdit(id){
   const v=db.varieties.find(x=>x.id===id); if(!v) return;
   const name=getEl('evname').value.trim();
   if(!name){ alert('Le nom ne peut pas être vide.'); return; }
-  v.name=name; v.species=getEl('evspecies').value.trim();
+  v.name=name;
+  v.species=getEl('evspecies').value.trim();
+  v.module=getEl('evmodule').value;
   closeModal(); persist({message:'Variété modifiée'});
 }
 function deleteVariety(id){
