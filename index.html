@@ -90,12 +90,40 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 .varietyInfo{margin-top:7px;font-size:12px;color:var(--muted);line-height:1.45}
 .moduleEmpty{padding:8px 0;color:var(--muted);font-size:13px}
 
+
+/* V14 : partage & synchronisation */
+.syncBadge{font-size:12px;font-weight:800;border-radius:999px;padding:6px 9px;white-space:nowrap;background:#ffffff22}
+.syncBadge.synced{background:#dff1e5;color:#174b31}
+.syncBadge.pending{background:#fff1bf;color:#614900}
+.syncBadge.syncing{background:#dce9f8;color:#214f79}
+.syncBadge.offline{background:#f6dddd;color:#7c2626}
+.syncBadge.login{background:#ececec;color:#555}
+.authGate{position:fixed;inset:0;background:#f4f7f4;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.authGate.hidden{display:none}
+.authCard{width:min(440px,100%);background:#fff;border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:0 12px 38px #0002}
+.syncLine{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.syncDot{width:9px;height:9px;border-radius:50%;display:inline-block;background:#999}
+.syncDot.ok{background:#3c7a5a}.syncDot.wait{background:#e3b341}.syncDot.bad{background:#b33a3a}
+.taskStatus{font-size:11px;border-radius:999px;padding:3px 7px;font-weight:800}
+.taskTodo{background:#edf0ee;color:#42534a}
+.taskDoing{background:#fff1bf;color:#614900}
+.taskDone{background:#dff1e5;color:#174b31}
+.activityWho{font-weight:800}
+.cloudWarning{background:#fff7d8;border:1px solid #e9cf75;border-radius:10px;padding:10px;margin:8px 0}
+@media(max-width:520px){header .row{align-items:flex-start}.syncBadge{font-size:11px}}
+
 </style>
 </head>
 <body>
 <header>
-  <h1>Gestion Serre</h1>
-  <small>Gestion agricole · 1 serre · plusieurs blocs de systèmes</small><div id="saveIndicator" class="saveStatus">✓ Prêt</div>
+  <div class="row">
+    <div>
+      <h1>Gestion Serre</h1>
+      <small>Gestion agricole · serre partagée</small>
+    </div>
+    <div id="syncIndicator" class="syncBadge offline">🔴 Hors connexion</div>
+  </div>
+  <div id="saveIndicator" class="saveStatus">✓ Prêt</div>
 </header>
 
 <main>
@@ -144,12 +172,24 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 <section id="planning">
   <div class="row"><h2>Planning</h2><button class="fit" onclick="openTask()">＋ Tâche</button></div>
   <div class="card">
-    <label>Période</label>
-    <select id="planFilter" onchange="renderPlanning()">
-      <option value="all">Toutes les tâches</option>
-      <option value="7">7 prochains jours</option>
-      <option value="30">30 prochains jours</option>
-    </select>
+    <div class="filterGrid">
+      <div>
+        <label>Période</label>
+        <select id="planFilter" onchange="renderPlanning()">
+          <option value="all">Toutes les tâches</option>
+          <option value="7">7 prochains jours</option>
+          <option value="30">30 prochains jours</option>
+        </select>
+      </div>
+      <div>
+        <label>Responsable</label>
+        <select id="planAssigneeFilter" onchange="renderPlanning()">
+          <option value="all_tasks">Tous</option>
+          <option value="mine">Mes tâches</option>
+          <option value="everyone">Pour tous</option>
+        </select>
+      </div>
+    </div>
   </div>
   <div id="planningList"></div>
 </section>
@@ -194,9 +234,19 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <div id="varietyList"></div>
   </div>
 
+  <div class="card" id="syncPanel">
+    <div class="row"><h3>Partage & synchronisation</h3><button class="secondary fit" onclick="manualSync()">↻ Synchroniser</button></div>
+    <div id="syncPanelContent" class="muted">Connexion en cours…</div>
+  </div>
+
+  <div class="card">
+    <div class="row"><h3>Activité partagée</h3><button class="secondary fit" onclick="refreshActivity()">↻</button></div>
+    <div id="activityList"><div class="empty">Aucune activité chargée.</div></div>
+  </div>
+
   <div class="card">
     <h3>Sauvegarde</h3>
-    <p class="muted">Les données sont conservées localement sur cet appareil. Fais une sauvegarde régulièrement.</p>
+    <p class="muted">Les données restent disponibles localement hors connexion et se synchronisent avec la serre partagée lorsque la 4G revient. L’export JSON reste conseillé comme sauvegarde supplémentaire.</p>
     <div class="toolbar">
       <button onclick="exportData()">Exporter JSON</button>
       <button class="secondary" onclick="document.getElementById('importFile').click()">Importer JSON</button>
@@ -205,8 +255,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V13 Consolidée</h3>
-    <p class="muted">Elle fonctionne sans compte ni serveur. Les vraies notifications push et la synchronisation multi-appareils pourront être ajoutées ensuite.</p>
+    <h3>À propos de cette V14 Partagée</h3>
+    <p class="muted">V14 offline-first : Benoît et Carine utilisent la même Serre principale. Les modifications sont conservées localement sans réseau puis synchronisées automatiquement dès qu’une connexion est disponible.</p>
   </div>
 </section>
 </main>
@@ -220,6 +270,21 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   <button onclick="show('more',this)"><span>⚙</span>Plus</button>
 </nav>
 
+
+<div id="authGate" class="authGate">
+  <div class="authCard">
+    <h2>🌱 Gestion Serre</h2>
+    <p class="muted">Connecte-toi pour accéder à la <b>Serre principale</b>. Une fois connecté, l'application reste utilisable même si la 4G coupe.</p>
+    <label>Adresse e-mail</label>
+    <input id="loginEmail" type="email" autocomplete="email" placeholder="votre adresse e-mail">
+    <label>Mot de passe</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="mot de passe">
+    <div id="loginError" class="dangerText small" style="min-height:18px;margin-top:7px"></div>
+    <button style="width:100%;margin-top:8px" onclick="login()">Se connecter</button>
+    <div id="offlineSessionHint" class="small muted" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <div id="undoBar" class="undoBar"><span id="undoText">Modification enregistrée.</span><button onclick="undoLastChange()">Annuler</button></div>
 
 <div id="modal" class="modal" onclick="if(event.target.id==='modal')closeModal()"><div class="sheet" id="sheet"></div></div>
@@ -228,7 +293,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V13 CONSOLIDÉE
+   GESTION SERRE — V14 PARTAGE & SYNCHRONISATION
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -244,12 +309,23 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 13;
+const APP_VERSION = 14;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
 const UNDO_KEY = 'gestion_serre_v11_undo';
 const SAVE_TIME_KEY = 'gestion_serre_v11_saved_at';
+
+const SUPABASE_URL = 'https://zoewrjylrvkejdtkmkla.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_0B9xr3QsXxlUjI8H79ug4A_v3CvpSau';
+
+const SESSION_KEY = 'gestion_serre_v14_session';
+const TEAM_CACHE_KEY = 'gestion_serre_v14_team';
+const CLOUD_LINK_KEY = 'gestion_serre_v14_greenhouse';
+const SYNC_DB_NAME = 'gestion_serre_v14_sync';
+const SYNC_DB_VERSION = 1;
+const SYNC_INTERVAL_MS = 20000;
+
 
 const BLOCKS_DEFAULT = [
   {id:'b1', name:'GrowStreamPro L1120', system:'GrowStreamPro', capacity:1120, chambers:56, plantsPerChamber:20, chamberLength:4, prefix:'L'},
@@ -470,6 +546,14 @@ function migrateData(raw){
   });
   x.cultures = Array.isArray(x.cultures) ? x.cultures : [];
   x.tasks = Array.isArray(x.tasks) ? x.tasks : [];
+  x.tasks = x.tasks.map(t=>{
+    const item=Object.assign({id:uid('t'),title:'Tâche',date:'',varietyId:'',blockId:'',done:false,status:'todo',assignee:'all'},t);
+    if(!item.status) item.status=item.done?'done':'todo';
+    if(item.done) item.status='done';
+    item.done=item.status==='done';
+    if(!item.assignee) item.assignee='all';
+    return item;
+  });
   x.stock = Array.isArray(x.stock) ? x.stock : [];
   x.stockMovements = Array.isArray(x.stockMovements) ? x.stockMovements : [];
   x.sales = Array.isArray(x.sales) ? x.sales : [];
@@ -508,6 +592,7 @@ function persist({message='Modification enregistrée',undo=true,render=true}={})
   if(render) renderAll();
   updateSaveIndicator();
   if(undo) showUndo(message);
+  afterLocalMutation();
 }
 
 function undoLastChange(){
@@ -522,6 +607,7 @@ function undoLastChange(){
     renderAll();
     updateSaveIndicator();
     getEl('undoBar')?.classList.remove('show');
+    afterLocalMutation();
   }catch(_){
     alert("Impossible d'annuler cette modification.");
   }
@@ -740,14 +826,17 @@ function renderAll(){
   renderSales();
   renderVarieties();
   renderOccupancySummary();
+  renderSyncPanel();
+  renderActivity();
   updateSaveIndicator();
+  updateSyncIndicator();
 }
 
 function renderDash(){
   const now=new Date();
   const in7=new Date(now); in7.setDate(in7.getDate()+7);
   const due=db.tasks.filter(t=>{
-    if(t.done||!t.date) return false;
+    if((t.status==='done'||t.done)||!t.date) return false;
     const d=new Date(t.date+'T23:59:59');
     return d>=now && d<=in7;
   }).length;
@@ -1251,27 +1340,83 @@ function releaseOneChamber(cultureId,n){
   closeModal(); persist({message:'Chambre libérée'});
 }
 
-// ---------- 10. PLANNING ----------
+// ---------- 10. PLANNING PARTAGÉ ----------
+function cachedTeam(){
+  if(cloud.team?.length) return cloud.team;
+  try{return JSON.parse(localStorage.getItem(TEAM_CACHE_KEY)||'[]')}catch(_){return[]}
+}
+function memberName(id){
+  if(id==='all'||!id) return 'Tous';
+  return cachedTeam().find(m=>m.user_id===id)?.display_name || 'Utilisateur';
+}
+function assigneeOptions(selected='all'){
+  let html=`<option value="all" ${selected==='all'?'selected':''}>Tous</option>`;
+  cachedTeam().forEach(m=>{
+    html+=`<option value="${m.user_id}" ${selected===m.user_id?'selected':''}>${esc(m.display_name||'Utilisateur')}</option>`;
+  });
+  return html;
+}
+function taskStatusLabel(status){
+  return status==='done'?'Terminée':status==='in_progress'?'En cours':'À faire';
+}
+function taskStatusClass(status){
+  return status==='done'?'taskDone':status==='in_progress'?'taskDoing':'taskTodo';
+}
+function taskModifier(t){
+  const id=t._cloudUpdatedBy||t._localUpdatedBy||'';
+  const when=t._cloudUpdatedAt||t._localUpdatedAt||'';
+  if(!id&&!when) return '';
+  return ` · modifié${id?' par '+esc(memberName(id)):''}${when?' le '+new Date(when).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}`;
+}
 function openTask(){
   modal(`<h2>Nouvelle tâche</h2>
     <label>Titre</label><input id="ttitle" placeholder="ex. semis, récolte, nettoyage…">
     <label>Date</label><input id="tdate" type="date" value="${todayISO()}">
+    <label>Responsable</label><select id="tassignee">${assigneeOptions('all')}</select>
+    <label>Statut</label><select id="tstatus">
+      <option value="todo">À faire</option>
+      <option value="in_progress">En cours</option>
+      <option value="done">Terminée</option>
+    </select>
     <label>Variété</label><select id="tvar">${varietyOptions('',true)}</select>
     <label>Bloc</label><select id="tblock">${blockOptions('',true)}</select>
     <br><button onclick="addTask()">Enregistrer</button>
     <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function addTask(){
+  const status=getEl('tstatus').value;
   db.tasks.push({
     id:uid('t'),title:getEl('ttitle').value.trim()||'Tâche',
     date:getEl('tdate').value,varietyId:getEl('tvar').value,
-    blockId:getEl('tblock').value,done:false
+    blockId:getEl('tblock').value,status,done:status==='done',
+    assignee:getEl('tassignee').value||'all',
+    _localUpdatedBy:cloud.user?.id||'',_localUpdatedAt:new Date().toISOString()
   });
   closeModal(); persist({message:'Tâche ajoutée'});
 }
+function startTask(id){
+  const t=db.tasks.find(x=>x.id===id);
+  if(t){
+    t.status='in_progress';t.done=false;
+    t._localUpdatedBy=cloud.user?.id||'';t._localUpdatedAt=new Date().toISOString();
+    persist({message:'Tâche passée en cours'});
+  }
+}
 function doneTask(id){
   const t=db.tasks.find(x=>x.id===id);
-  if(t){ t.done=true; persist({message:'Tâche terminée'}); }
+  if(t){
+    t.status='done';t.done=true;
+    t._localUpdatedBy=cloud.user?.id||'';t._localUpdatedAt=new Date().toISOString();
+    persist({message:'Tâche terminée'});
+  }
+}
+function reopenTask(id){
+  const t=db.tasks.find(x=>x.id===id);
+  if(t){
+    t.status='todo';t.done=false;
+    t._localUpdatedBy=cloud.user?.id||'';t._localUpdatedAt=new Date().toISOString();
+    persist({message:'Tâche remise à faire'});
+  }
 }
 function deleteTask(id){
   if(!confirm('Supprimer cette tâche ?')) return;
@@ -1280,8 +1425,14 @@ function deleteTask(id){
 }
 function renderPlanning(){
   const filter=getEl('planFilter')?.value||'all';
+  const assigneeFilter=getEl('planAssigneeFilter')?.value||'all_tasks';
   const today=new Date(); today.setHours(0,0,0,0);
-  let arr=db.tasks.filter(t=>!t.done&&t.date).sort((a,b)=>a.date.localeCompare(b.date));
+
+  let arr=db.tasks.filter(t=>t.date).sort((a,b)=>{
+    const statusRank=x=>x.status==='in_progress'?0:x.status==='todo'?1:2;
+    return statusRank(a)-statusRank(b)||a.date.localeCompare(b.date);
+  });
+
   if(filter!=='all'){
     const max=new Date(today); max.setDate(max.getDate()+Number(filter));
     arr=arr.filter(t=>{
@@ -1289,10 +1440,22 @@ function renderPlanning(){
       return d>=today&&d<=max;
     });
   }
+  if(assigneeFilter==='mine'&&cloud.user?.id) arr=arr.filter(t=>t.assignee===cloud.user.id);
+  if(assigneeFilter==='everyone') arr=arr.filter(t=>!t.assignee||t.assignee==='all');
+
   getEl('planningList').innerHTML=arr.length
     ? arr.map(t=>`<div class="card"><div class="row">
-        <div><b>${fmt(t.date)} · ${esc(t.title)}</b><br><span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}</span></div>
-        <div class="fit toolbar"><button onclick="doneTask('${t.id}')">✓</button><button class="danger" onclick="deleteTask('${t.id}')">×</button></div>
+        <div>
+          <b>${fmt(t.date)} · ${esc(t.title)}</b><br>
+          <span class="${taskStatusClass(t.status)} taskStatus">${taskStatusLabel(t.status)}</span>
+          <span class="pill gray">👤 ${esc(memberName(t.assignee))}</span><br>
+          <span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}${taskModifier(t)}</span>
+        </div>
+        <div class="fit toolbar">
+          ${t.status==='todo'?`<button class="secondary" onclick="startTask('${t.id}')">▶</button>`:''}
+          ${t.status!=='done'?`<button onclick="doneTask('${t.id}')">✓</button>`:`<button class="secondary" onclick="reopenTask('${t.id}')">↶</button>`}
+          <button class="danger" onclick="deleteTask('${t.id}')">×</button>
+        </div>
       </div></div>`).join('')
     : '<div class="empty">Aucune tâche.</div>';
 }
@@ -1666,6 +1829,503 @@ function deleteVariety(id){
   persist({message:'Variété supprimée — Annuler ?'});
 }
 
+
+// ---------- 14. PARTAGE & SYNCHRONISATION ----------
+const cloud={
+  session:null,user:null,greenhouseId:'',greenhouseName:'Serre principale',
+  role:'',team:[],activity:[],state:'login',message:'',syncing:false,
+  linked:false,syncTimer:null,syncSoonTimer:null,lastSync:''
+};
+
+const ENTITY_COLLECTIONS={
+  block:'blocks',
+  variety:'varieties',
+  culture:'cultures',
+  chamber_history:'chamberHistory',
+  task:'tasks',
+  stock:'stock',
+  stock_movement:'stockMovements',
+  sale:'sales',
+  cost:'costs'
+};
+
+function openSyncDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(SYNC_DB_NAME,SYNC_DB_VERSION);
+    req.onupgradeneeded=()=>{
+      const d=req.result;
+      if(!d.objectStoreNames.contains('queue')) d.createObjectStore('queue',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta',{keyPath:'key'});
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function idbGet(store,key){
+  const d=await openSyncDB();
+  return new Promise((resolve,reject)=>{
+    const r=d.transaction(store,'readonly').objectStore(store).get(key);
+    r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+  });
+}
+async function idbPut(store,value){
+  const d=await openSyncDB();
+  return new Promise((resolve,reject)=>{
+    const r=d.transaction(store,'readwrite').objectStore(store).put(value);
+    r.onsuccess=()=>resolve(value);r.onerror=()=>reject(r.error);
+  });
+}
+async function idbDelete(store,key){
+  const d=await openSyncDB();
+  return new Promise((resolve,reject)=>{
+    const r=d.transaction(store,'readwrite').objectStore(store).delete(key);
+    r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error);
+  });
+}
+async function idbAll(store){
+  const d=await openSyncDB();
+  return new Promise((resolve,reject)=>{
+    const r=d.transaction(store,'readonly').objectStore(store).getAll();
+    r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);
+  });
+}
+async function metaGet(key,defaultValue=null){
+  try{return (await idbGet('meta',key))?.value ?? defaultValue}catch(_){return defaultValue}
+}
+async function metaSet(key,value){
+  try{await idbPut('meta',{key,value})}catch(_){}
+}
+
+function cleanCloudData(obj){
+  const x=clone(obj);
+  Object.keys(x).forEach(k=>{
+    if(k.startsWith('_cloud')||k.startsWith('_local')) delete x[k];
+  });
+  return x;
+}
+function localSnapshotRecords(){
+  const rows=[];
+  Object.entries(ENTITY_COLLECTIONS).forEach(([type,collection])=>{
+    (db[collection]||[]).forEach(item=>{
+      if(!item?.id) return;
+      rows.push({entity_type:type,record_key:String(item.id),data:cleanCloudData(item)});
+    });
+  });
+  rows.push({
+    entity_type:'app_meta',record_key:'main',
+    data:{greenhouse:cleanCloudData(db.greenhouse||SEED.greenhouse),schemaVersion:APP_VERSION}
+  });
+  return rows;
+}
+function recordMap(rows){
+  const m={};
+  rows.forEach(r=>m[`${r.entity_type}|${r.record_key}`]=JSON.stringify(r.data));
+  return m;
+}
+function hasMeaningfulLocalData(){
+  if((db.cultures||[]).length||(db.tasks||[]).length||(db.sales||[]).length||(db.costs||[]).length||(db.chamberHistory||[]).length) return true;
+  if((db.stock||[]).some(s=>Number(s.qty||0)>0||s.supplier||s.lot)) return true;
+  const defaultIds=new Set(DEFAULT_VARIETIES.map(v=>v.id));
+  if((db.varieties||[]).some(v=>!defaultIds.has(v.id))) return true;
+  return false;
+}
+async function pendingCount(){ return (await idbAll('queue')).length; }
+
+async function queueChangesAgainstBase(forceAll=false){
+  if(!cloud.greenhouseId||!cloud.linked) return;
+  const current=localSnapshotRecords();
+  const currentMap=recordMap(current);
+  const base=forceAll?{}:await metaGet('baseSnapshot',{});
+
+  for(const row of current){
+    const k=`${row.entity_type}|${row.record_key}`;
+    if(forceAll || base[k]!==currentMap[k]){
+      await idbPut('queue',{
+        key:k,op:'upsert',entity_type:row.entity_type,record_key:row.record_key,
+        data:row.data,stamp:Date.now()+Math.random()
+      });
+    }
+  }
+  Object.keys(base).forEach(async k=>{
+    if(!(k in currentMap)){
+      const [entity_type,...rest]=k.split('|');
+      await idbPut('queue',{
+        key:k,op:'delete',entity_type,record_key:rest.join('|'),
+        stamp:Date.now()+Math.random()
+      });
+    }
+  });
+  updateSyncIndicator();
+}
+function afterLocalMutation(){
+  if(!cloud.linked) return;
+  queueChangesAgainstBase(false).then(()=>scheduleSync(500));
+}
+function scheduleSync(delay=1200){
+  clearTimeout(cloud.syncSoonTimer);
+  cloud.syncSoonTimer=setTimeout(()=>syncNow(false),delay);
+}
+
+function loadStoredSession(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+    if(s?.access_token&&s?.refresh_token){cloud.session=s;cloud.user=s.user||null;return true}
+  }catch(_){}
+  return false;
+}
+function saveSession(s){
+  if(s?.expires_in&&!s.expires_at) s.expires_at=Math.floor(Date.now()/1000)+Number(s.expires_in);
+  cloud.session=s;cloud.user=s?.user||cloud.user;
+  localStorage.setItem(SESSION_KEY,JSON.stringify(s));
+}
+function clearSession(){
+  cloud.session=null;cloud.user=null;cloud.greenhouseId='';cloud.role='';cloud.team=[];
+  cloud.linked=false;localStorage.removeItem(SESSION_KEY);localStorage.removeItem(CLOUD_LINK_KEY);
+}
+
+async function authRequest(path,body){
+  const res=await fetch(`${SUPABASE_URL}${path}`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error_description||data.msg||data.message||'Erreur de connexion');
+  return data;
+}
+async function login(){
+  const email=getEl('loginEmail').value.trim();
+  const password=getEl('loginPassword').value;
+  getEl('loginError').textContent='';
+  if(!email||!password){getEl('loginError').textContent='Renseigne l’e-mail et le mot de passe.';return}
+  if(!navigator.onLine){getEl('loginError').textContent='Une connexion est nécessaire pour la première connexion.';return}
+  try{
+    setSyncState('syncing','Connexion…');
+    const s=await authRequest('/auth/v1/token?grant_type=password',{email,password});
+    saveSession(s);
+    getEl('loginPassword').value='';
+    getEl('authGate').classList.add('hidden');
+    await connectCloud();
+  }catch(e){
+    setSyncState('login','Connexion requise');
+    getEl('loginError').textContent=e.message||'Connexion impossible.';
+  }
+}
+async function refreshSession(){
+  if(!cloud.session?.refresh_token) throw new Error('Session absente');
+  const s=await authRequest('/auth/v1/token?grant_type=refresh_token',{refresh_token:cloud.session.refresh_token});
+  saveSession(s);return s;
+}
+async function ensureSession(){
+  if(!cloud.session) throw new Error('Connexion requise');
+  const expires=Number(cloud.session.expires_at||0);
+  if(!expires||expires*1000-Date.now()<60000){
+    if(!navigator.onLine) return cloud.session;
+    await refreshSession();
+  }
+  return cloud.session;
+}
+async function api(path,{method='GET',body=null,prefer=''}={}){
+  await ensureSession();
+  const headers={
+    'apikey':SUPABASE_PUBLISHABLE_KEY,
+    'Authorization':`Bearer ${cloud.session.access_token}`,
+    'Content-Type':'application/json'
+  };
+  if(prefer) headers['Prefer']=prefer;
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+    method,headers,body:body===null?undefined:JSON.stringify(body)
+  });
+  if(res.status===401&&navigator.onLine){
+    await refreshSession();
+    headers.Authorization=`Bearer ${cloud.session.access_token}`;
+    const retry=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+      method,headers,body:body===null?undefined:JSON.stringify(body)
+    });
+    if(!retry.ok) throw new Error((await retry.text())||`Erreur ${retry.status}`);
+    const text=await retry.text();return text?JSON.parse(text):null;
+  }
+  if(!res.ok) throw new Error((await res.text())||`Erreur ${res.status}`);
+  const text=await res.text();return text?JSON.parse(text):null;
+}
+
+function setSyncState(state,message=''){
+  cloud.state=state;cloud.message=message;updateSyncIndicator();renderSyncPanel();
+}
+async function updateSyncIndicator(){
+  const el=getEl('syncIndicator');if(!el)return;
+  let count=0;try{count=await pendingCount()}catch(_){}
+  el.className='syncBadge';
+  if(!cloud.session){el.classList.add('login');el.textContent='⚪ Connexion';return}
+  if(!navigator.onLine){el.classList.add('offline');el.textContent=`🔴 Hors ligne${count?` · ${count} en attente`:''}`;return}
+  if(cloud.syncing){el.classList.add('syncing');el.textContent='🔵 Synchronisation…';return}
+  if(count){el.classList.add('pending');el.textContent=`🟡 ${count} en attente`;return}
+  if(cloud.linked){el.classList.add('synced');el.textContent='🟢 Synchronisé';return}
+  el.classList.add('pending');el.textContent='🟡 À initialiser';
+}
+
+async function findMembership(){
+  const uid=cloud.user?.id;if(!uid)return null;
+  const rows=await api(`greenhouse_members?select=greenhouse_id,role&user_id=eq.${encodeURIComponent(uid)}`);
+  return rows?.[0]||null;
+}
+async function loadTeam(){
+  if(!cloud.greenhouseId)return;
+  const members=await api(`greenhouse_members?select=user_id,role&greenhouse_id=eq.${encodeURIComponent(cloud.greenhouseId)}`);
+  const ids=(members||[]).map(m=>m.user_id);
+  let profiles=[];
+  if(ids.length){
+    profiles=await api(`profiles?select=id,display_name&id=in.(${ids.join(',')})`);
+  }
+  cloud.team=(members||[]).map(m=>({
+    user_id:m.user_id,role:m.role,
+    display_name:profiles?.find(p=>p.id===m.user_id)?.display_name||'Utilisateur'
+  })).sort((a,b)=>byText(a.display_name,b.display_name));
+  localStorage.setItem(TEAM_CACHE_KEY,JSON.stringify(cloud.team));
+}
+async function loadGreenhouseName(){
+  const rows=await api(`greenhouses?select=id,name&id=eq.${encodeURIComponent(cloud.greenhouseId)}`);
+  if(rows?.[0]?.name) cloud.greenhouseName=rows[0].name;
+}
+
+async function fetchRemoteRecords(){
+  return await api(`records?select=entity_type,record_key,data,updated_by,updated_at,version&greenhouse_id=eq.${encodeURIComponent(cloud.greenhouseId)}&deleted=eq.false&order=entity_type.asc,record_key.asc`);
+}
+function emptySharedDb(){
+  return {
+    schemaVersion:APP_VERSION,greenhouse:clone(SEED.greenhouse),
+    blocks:[],varieties:[],cultures:[],chamberHistory:[],tasks:[],
+    stock:[],stockMovements:[],sales:[],costs:[]
+  };
+}
+function dbFromRemote(rows){
+  const next=emptySharedDb();
+  (rows||[]).forEach(r=>{
+    if(r.entity_type==='app_meta'){
+      if(r.data?.greenhouse) next.greenhouse=r.data.greenhouse;
+      return;
+    }
+    const collection=ENTITY_COLLECTIONS[r.entity_type];
+    if(!collection)return;
+    const item=clone(r.data||{});
+    item._cloudUpdatedBy=r.updated_by||'';
+    item._cloudUpdatedAt=r.updated_at||'';
+    item._cloudVersion=r.version||1;
+    next[collection].push(item);
+  });
+  return migrateData(next);
+}
+function applyPendingToDb(target,pending){
+  const byType={};
+  Object.entries(ENTITY_COLLECTIONS).forEach(([type,col])=>byType[type]=col);
+  (pending||[]).forEach(op=>{
+    if(op.entity_type==='app_meta'){
+      if(op.op==='upsert'&&op.data?.greenhouse) target.greenhouse=clone(op.data.greenhouse);
+      return;
+    }
+    const col=byType[op.entity_type];if(!col)return;
+    if(op.op==='delete') target[col]=target[col].filter(x=>String(x.id)!==String(op.record_key));
+    else{
+      const item=clone(op.data);item._localUpdatedBy=cloud.user?.id||'';item._localUpdatedAt=new Date().toISOString();
+      const i=target[col].findIndex(x=>String(x.id)===String(op.record_key));
+      if(i>=0)target[col][i]=item;else target[col].push(item);
+    }
+  });
+  return migrateData(target);
+}
+async function cacheBaseFromRows(rows){
+  await metaSet('baseSnapshot',recordMap((rows||[]).map(r=>({entity_type:r.entity_type,record_key:r.record_key,data:r.data}))));
+}
+
+async function pushQueue(){
+  const entries=await idbAll('queue');
+  for(const op of entries){
+    if(op.op==='upsert'){
+      await api(
+        `records?on_conflict=greenhouse_id%2Centity_type%2Crecord_key`,
+        {method:'POST',prefer:'resolution=merge-duplicates,return=minimal',
+         body:{greenhouse_id:cloud.greenhouseId,entity_type:op.entity_type,record_key:op.record_key,data:op.data,deleted:false}}
+      );
+    }else{
+      await api(
+        `records?greenhouse_id=eq.${encodeURIComponent(cloud.greenhouseId)}&entity_type=eq.${encodeURIComponent(op.entity_type)}&record_key=eq.${encodeURIComponent(op.record_key)}`,
+        {method:'PATCH',prefer:'return=minimal',body:{deleted:true}}
+      );
+    }
+    const current=await idbGet('queue',op.key);
+    if(current?.stamp===op.stamp) await idbDelete('queue',op.key);
+  }
+}
+async function pullCloud(){
+  const rows=await fetchRemoteRecords();
+  const pending=await idbAll('queue');
+  let next=dbFromRemote(rows);
+  if(pending.length) next=applyPendingToDb(next,pending);
+  db=next;
+  localStorage.setItem(KEY,JSON.stringify(db));
+  await cacheBaseFromRows(rows);
+  cloud.lastSync=new Date().toISOString();
+  await metaSet('lastSync',cloud.lastSync);
+  renderAll();
+}
+async function refreshActivity(){
+  if(!cloud.session||!cloud.greenhouseId||!navigator.onLine){renderActivity();return}
+  try{
+    const rows=await api(`activity_log?select=id,user_id,action,entity_type,record_key,summary,created_at&greenhouse_id=eq.${encodeURIComponent(cloud.greenhouseId)}&order=created_at.desc&limit=30`);
+    cloud.activity=rows||[];
+    await metaSet('activity',cloud.activity);
+    renderActivity();
+  }catch(_){}
+}
+function actionLabel(a){
+  return a==='created'?'a créé':a==='deleted'?'a supprimé':'a modifié';
+}
+function entityLabel(t){
+  return ({task:'une tâche',culture:'une culture',variety:'une variété',stock:'un article de stock',
+    stock_movement:'un mouvement de stock',sale:'une vente',cost:'un coût',block:'un bloc',
+    chamber_history:'une chambre'}[t]||t||'un élément');
+}
+function renderActivity(){
+  const el=getEl('activityList');if(!el)return;
+  const arr=cloud.activity||[];
+  el.innerHTML=arr.length?arr.map(a=>`<div class="item small">
+    <span class="activityWho">${esc(memberName(a.user_id))}</span> ${actionLabel(a.action)} ${entityLabel(a.entity_type)}
+    ${a.summary?` · <b>${esc(a.summary)}</b>`:''}<br>
+    <span class="muted">${new Date(a.created_at).toLocaleString('fr-FR')}</span>
+  </div>`).join(''):'<div class="empty">Aucune activité partagée.</div>';
+}
+
+async function syncNow(manual=true){
+  if(cloud.syncing)return;
+  if(!cloud.session){setSyncState('login','Connexion requise');return}
+  if(!navigator.onLine){setSyncState('offline','Hors connexion');return}
+  if(!cloud.greenhouseId)return;
+  if(!cloud.linked){renderSyncPanel();return}
+  cloud.syncing=true;updateSyncIndicator();
+  try{
+    await ensureSession();
+    await queueChangesAgainstBase(false);
+    await pushQueue();
+    await pullCloud();
+    await refreshActivity();
+    setSyncState('synced','Synchronisé');
+  }catch(e){
+    console.warn('Sync error',e);
+    setSyncState('pending',e.message||'Synchronisation en attente');
+    if(manual) alert(`Synchronisation impossible pour le moment : ${e.message||'erreur réseau'}`);
+  }finally{
+    cloud.syncing=false;updateSyncIndicator();renderSyncPanel();
+  }
+}
+function manualSync(){ syncNow(true); }
+
+async function migrateLocalToCloud(){
+  if(cloud.role!=='owner'){alert('Seul le propriétaire peut initialiser la serre partagée.');return}
+  if(!confirm('Envoyer les données actuelles de ce téléphone vers la Serre principale ?'))return;
+  cloud.linked=true;
+  localStorage.setItem(CLOUD_LINK_KEY,cloud.greenhouseId);
+  await metaSet('baseSnapshot',{});
+  await queueChangesAgainstBase(true);
+  await syncNow(true);
+  renderSyncPanel();
+}
+async function loadCloudInstead(){
+  if(!confirm('Charger les données présentes dans le cloud sur ce téléphone ?'))return;
+  cloud.linked=true;localStorage.setItem(CLOUD_LINK_KEY,cloud.greenhouseId);
+  await pullCloud();renderSyncPanel();
+}
+
+async function connectCloud(){
+  if(!cloud.session||!navigator.onLine){updateSyncIndicator();return}
+  try{
+    setSyncState('syncing','Connexion à la Serre principale…');
+    await ensureSession();
+    if(!cloud.user){
+      const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{
+        headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${cloud.session.access_token}`}
+      });
+      if(res.ok){cloud.user=await res.json();cloud.session.user=cloud.user;saveSession(cloud.session)}
+    }
+    const membership=await findMembership();
+    if(!membership) throw new Error('Ce compte n’est rattaché à aucune serre.');
+    cloud.greenhouseId=membership.greenhouse_id;cloud.role=membership.role;
+    await loadTeam();await loadGreenhouseName();
+    const rows=await fetchRemoteRecords();
+    const linkedId=localStorage.getItem(CLOUD_LINK_KEY);
+    cloud.linked=linkedId===cloud.greenhouseId;
+
+    if(rows.length){
+      cloud.linked=true;localStorage.setItem(CLOUD_LINK_KEY,cloud.greenhouseId);
+      const pending=await idbAll('queue');
+      let next=dbFromRemote(rows);
+      if(pending.length) next=applyPendingToDb(next,pending);
+      db=next;localStorage.setItem(KEY,JSON.stringify(db));
+      await cacheBaseFromRows(rows);
+      setSyncState('synced','Serre partagée chargée');
+      await refreshActivity();
+      renderAll();
+      scheduleSync(400);
+    }else{
+      cloud.linked=false;
+      setSyncState('pending',cloud.role==='owner'?'Migration locale à effectuer':'En attente de l’initialisation par Benoît');
+      renderAll();
+    }
+  }catch(e){
+    console.warn(e);
+    setSyncState('pending',e.message||'Connexion au cloud impossible');
+  }
+}
+
+function renderSyncPanel(){
+  const el=getEl('syncPanelContent');if(!el)return;
+  const me=cloud.user?memberName(cloud.user.id):'Non connecté';
+  let html=`<div class="syncLine"><span class="syncDot ${navigator.onLine?'ok':'bad'}"></span><b>${navigator.onLine?'4G / Internet disponible':'Hors connexion'}</b></div>`;
+  if(!cloud.session){
+    html+=`<p>Connexion requise pour partager les données.</p>`;
+  }else if(!cloud.greenhouseId){
+    html+=`<p>Compte : <b>${esc(me)}</b><br>${esc(cloud.message||'Connexion à la serre…')}</p>`;
+  }else{
+    html+=`<p>Compte : <b>${esc(me)}</b> · rôle <b>${esc(cloud.role==='owner'?'propriétaire':'membre')}</b><br>
+      Espace : <b>${esc(cloud.greenhouseName)}</b></p>`;
+    if(!cloud.linked){
+      if(cloud.role==='owner'){
+        html+=`<div class="cloudWarning"><b>Première synchronisation</b><br>La base partagée est vide. Les données présentes sur ce téléphone peuvent maintenant devenir la base commune de Benoît et Carine.</div>
+        <button onclick="migrateLocalToCloud()">☁ Envoyer les données de ce téléphone</button>`;
+      }else{
+        html+=`<div class="cloudWarning">La serre partagée n’a pas encore été initialisée. Benoît doit effectuer la première migration depuis son téléphone.</div>`;
+      }
+    }else{
+      html+=`<div class="syncLine"><span class="syncDot ok"></span><b>Synchronisation automatique active</b></div>
+        <p class="small muted">Dernière synchronisation : ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString('fr-FR'):'pas encore'}.</p>`;
+    }
+    html+=`<div class="toolbar"><button class="secondary" onclick="logout()">Se déconnecter</button></div>`;
+  }
+  el.innerHTML=html;
+}
+
+async function logout(){
+  if(!confirm('Se déconnecter de Gestion Serre sur cet appareil ?'))return;
+  try{
+    if(navigator.onLine&&cloud.session?.access_token){
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:{
+        apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${cloud.session.access_token}`
+      }});
+    }
+  }catch(_){}
+  clearSession();setSyncState('login','Connexion requise');
+  getEl('authGate').classList.remove('hidden');
+  renderAll();
+}
+
+function startAutoSync(){
+  clearInterval(cloud.syncTimer);
+  cloud.syncTimer=setInterval(()=>{if(navigator.onLine&&cloud.session&&cloud.linked)syncNow(false)},SYNC_INTERVAL_MS);
+}
+window.addEventListener('online',()=>{updateSyncIndicator();if(cloud.session)connectCloud().then(()=>syncNow(false))});
+window.addEventListener('offline',()=>{setSyncState('offline','Hors connexion')});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&navigator.onLine&&cloud.session)syncNow(false)});
+
+
 // ---------- 14. SAUVEGARDE ----------
 function exportData(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -1689,6 +2349,7 @@ function importData(event){
       localStorage.setItem(KEY,JSON.stringify(db));
       localStorage.setItem(SAVE_TIME_KEY,new Date().toISOString());
       renderAll(); updateSaveIndicator();
+      afterLocalMutation();
       alert('Sauvegarde importée avec succès.');
     }catch(_){
       alert('Fichier de sauvegarde invalide.');
@@ -1700,11 +2361,9 @@ function importData(event){
 }
 
 // ---------- 15. INITIALISATION ----------
-function init(){
+async function init(){
   loadData();
 
-  // L'historique commence toujours sur Accueil : sur Android,
-  // Retour depuis une autre rubrique ramène donc à l'accueil au lieu de fermer l'app.
   const saved=localStorage.getItem(NAV_KEY)||'dashboard';
   history.replaceState({view:'dashboard'},'',location.href);
   if(saved!=='dashboard'){
@@ -1716,6 +2375,30 @@ function init(){
 
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
+
+  try{
+    cloud.activity=await metaGet('activity',[]);
+    cloud.lastSync=await metaGet('lastSync','');
+  }catch(_){}
+
+  const hasSession=loadStoredSession();
+  startAutoSync();
+
+  if(hasSession){
+    getEl('authGate').classList.add('hidden');
+    updateSyncIndicator();
+    if(navigator.onLine){
+      connectCloud();
+    }else{
+      cloud.team=cachedTeam();
+      setSyncState('offline','Mode hors connexion');
+      renderAll();
+    }
+  }else{
+    getEl('authGate').classList.remove('hidden');
+    setSyncState('login','Connexion requise');
+    getEl('offlineSessionHint').textContent='La première connexion nécessite Internet. Ensuite, les données restent consultables et modifiables hors ligne.';
   }
 }
 
