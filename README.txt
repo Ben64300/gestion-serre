@@ -1,51 +1,32 @@
-GESTION SERRE — V14 PARTAGE & SYNCHRONISATION
+GESTION SERRE — V15 TERRAIN & RÉCOLTES
 
-Cette version est construite sur la V13 Consolidée.
+Base : V14 Partage & Synchronisation, conservée intégralement.
 
-SUPABASE
-- Projet : Gestion-serre
-- URL configurée dans l'application : https://zoewrjylrvkejdtkmkla.supabase.co
-- La clé intégrée est la clé PUBLIABLE uniquement.
-- Les données sont protégées côté base par Supabase Auth + RLS.
+NOUVEAUTÉS V15
+- Accueil « Aujourd’hui dans la serre » avec priorités.
+- Bouton flottant + pour les actions les plus fréquentes.
+- Mode Terrain dédié.
+- Mode Tournée : parcours des chambres, RAS, observation, problème, création facultative de tâche.
+- Récoltes : date, culture, chambre, quantité, unité, qualité, notes.
+- Bouton Récolte directement depuis une chambre.
+- Accès chambre par QR code ou saisie L01 / S01.
+- PDF prêt à imprimer : qr-chambres.pdf (116 chambres).
+- Vérification intégrée des mises à jour dans Outils.
+- Synchronisation de harvests et inspections entre Benoît et Carine.
 
-UTILISATION PARTAGÉE
-- Benoît et Carine ont chacun leur propre compte.
-- Les deux comptes utilisent la même « Serre principale ».
-- Benoît est propriétaire ; Carine est membre.
-- Les données communes sont stockées dans public.records.
+QR
+Les QR contiennent l’URL GitHub Pages avec ?chamber=L01 (ou S01, etc.).
+Ils peuvent donc être scannés avec l’appareil photo du téléphone. Gestion Serre accepte également le scan QR depuis le Mode Terrain lorsque BarcodeDetector est disponible.
 
-MODE HORS CONNEXION
-- L'application reste utilisable lorsque la 4G disparaît.
-- Les données restent immédiatement enregistrées sur le téléphone.
-- IndexedDB conserve la file des modifications à synchroniser.
-- Lorsque le réseau revient, l'application synchronise automatiquement.
-- Une synchronisation automatique est également tentée toutes les 20 secondes lorsque l'application est ouverte et connectée.
-- Un bouton de synchronisation manuelle reste disponible dans Outils.
+MISE À JOUR
+Pour GitHub Pages, remplacer / ajouter :
+- index.html
+- manifest.json
+- sw.js
+- README.txt
+- qr-chambres.pdf
 
-PREMIÈRE MIGRATION
-1. Installer / ouvrir la V14 sur le téléphone de Benoît.
-2. Se connecter avec le compte Benoît.
-3. Ouvrir Outils → Partage & synchronisation.
-4. Si la base partagée est vide, appuyer sur « Envoyer les données de ce téléphone ».
-5. Attendre l'indicateur vert « Synchronisé ».
-6. Ouvrir ensuite la même adresse GitHub Pages sur le téléphone de Carine.
-7. Installer Gestion Serre et se connecter avec le compte Carine.
-8. Les données de la Serre principale sont alors téléchargées automatiquement.
+Aucune nouvelle configuration Supabase n’est nécessaire : les nouvelles données utilisent la table public.records déjà en place.
 
-TÂCHES
-- Responsable : Benoît, Carine ou Tous.
-- Statut : À faire, En cours ou Terminée.
-- Les cartes de tâches indiquent le responsable et, après synchronisation, le dernier utilisateur ayant modifié la tâche.
-
-JOURNAL
-- Outils → Activité partagée affiche les dernières opérations synchronisées et leur auteur.
-
-INDICATEURS
-- 🟢 Synchronisé
-- 🟡 Modifications en attente / initialisation
-- 🔵 Synchronisation en cours
-- 🔴 Hors connexion
-- ⚪ Connexion requise
-
-SAUVEGARDE
-L'export/import JSON reste disponible en complément de la synchronisation cloud.
+IMPORTANT
+Faire un export JSON avant toute mise à jour majeure reste une bonne sauvegarde de sécurité.

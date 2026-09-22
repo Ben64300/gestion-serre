@@ -112,6 +112,24 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 .cloudWarning{background:#fff7d8;border:1px solid #e9cf75;border-radius:10px;padding:10px;margin:8px 0}
 @media(max-width:520px){header .row{align-items:flex-start}.syncBadge{font-size:11px}}
 
+
+/* V15 : terrain, récoltes, QR et mise à jour */
+.fab{position:fixed;right:18px;bottom:92px;z-index:15;width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;padding:0;box-shadow:0 8px 22px #0004;background:var(--green)}
+.todayHero{background:linear-gradient(135deg,#eaf4ed,#fff);border:1px solid #cfe2d5}
+.todayHero h2{margin:0 0 3px}.todayHero .who{font-size:12px;color:var(--muted)}
+.priorityItem{padding:9px 0;border-top:1px solid var(--border)}.priorityItem:first-child{border-top:0}
+.fieldActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fieldActions button{width:100%;min-height:58px}
+.tourProgress{height:9px;border-radius:99px;background:#e7eee9;overflow:hidden;margin:8px 0}.tourProgress>i{display:block;height:100%;background:var(--green2)}
+.tourChamber{font-size:34px;font-weight:900;letter-spacing:.5px;text-align:center;margin:8px 0}
+.bigActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}.bigActions button{min-height:58px;font-size:14px}
+.harvestMetric{font-size:22px;font-weight:900}.harvestUnit{font-size:12px;color:var(--muted)}
+.qrVideo{width:100%;max-height:52vh;background:#111;border-radius:12px;object-fit:cover;margin-top:8px}
+.updateOk{background:#e4f2e8;border:1px solid #bed9c5;border-radius:10px;padding:10px}
+.updateReady{background:#fff2c9;border:1px solid #e3c76e;border-radius:10px;padding:10px}
+.obsTag{display:inline-block;border-radius:999px;padding:3px 7px;font-size:11px;font-weight:800;background:#edf0ee;color:#42534a}
+.obsTag.problem{background:#f7dddd;color:#7c2626}.obsTag.note{background:#fff1bf;color:#614900}.obsTag.ok{background:#dff1e5;color:#174b31}
+@media(max-width:430px){.fab{right:14px;bottom:87px}.fieldActions{grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 <body>
@@ -128,20 +146,40 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
 <main>
 <section id="dashboard" class="active">
-  <h2>Tableau de bord</h2>
+  <div class="card todayHero">
+    <div class="row"><div><h2 id="todayTitle">Aujourd’hui dans la serre</h2><div id="todayWho" class="who"></div></div><button class="secondary fit" onclick="startTour()">🚶 Tournée</button></div>
+    <div id="todayFocus"></div>
+  </div>
   <div class="grid" id="metrics"></div>
   <div class="card">
     <h3>Actions rapides</h3>
     <div class="quickActions">
-      <button onclick="openCulture()">＋ Nouvelle culture</button>
+      <button onclick="openHarvest()">⚖ Enregistrer une récolte</button>
+      <button class="secondary" onclick="openQRScanner()">▣ Scanner une chambre</button>
+      <button class="secondary" onclick="openCulture()">＋ Nouvelle culture</button>
       <button class="secondary" onclick="openReservation()">🟨 Réserver une chambre</button>
-      <button class="secondary" onclick="quickStockMove()">📦 Mouvement de stock</button>
-      <button class="secondary" onclick="goToPlan()">▦ Voir le plan</button>
     </div>
   </div>
+  <div class="card"><h3>Récoltes</h3><div id="harvestSummary"></div></div>
   <div class="card"><h3>Occupation des GrowStream</h3><div id="occupancySummary"></div></div>
   <div class="card"><h3>Prochaines échéances</h3><div id="upcoming"></div></div>
   <div class="card"><h3>Alertes stock</h3><div id="alerts"></div></div>
+</section>
+
+<section id="field">
+  <div class="row"><h2>Mode terrain</h2><button class="fit" onclick="startTour()">🚶 Démarrer une tournée</button></div>
+  <div class="card">
+    <h3>Accès direct</h3>
+    <div class="fieldActions">
+      <button onclick="openQRScanner()">▣ Scanner QR</button>
+      <button class="secondary" onclick="openChamberLookup()">🔎 Ouvrir une chambre</button>
+      <button class="secondary" onclick="openHarvest()">⚖ Récolte</button>
+      <button class="secondary" onclick="window.open('./qr-chambres.pdf','_blank')">🖨 QR à imprimer</button>
+    </div>
+    <p class="small muted">Les QR L01 à L56 et S01 à S60 ouvrent directement la chambre correspondante. Le scan fonctionne aussi hors ligne si le navigateur prend en charge la détection QR.</p>
+  </div>
+  <div class="card"><h3>Récoltes récentes</h3><div id="harvestList"></div></div>
+  <div class="card"><h3>Dernières observations de tournée</h3><div id="inspectionList"></div></div>
 </section>
 
 <section id="cultures">
@@ -245,6 +283,11 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
+    <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
+    <div id="updateStatus" class="muted">Gestion Serre V15 installée.</div>
+  </div>
+
+  <div class="card">
     <h3>Sauvegarde</h3>
     <p class="muted">Les données restent disponibles localement hors connexion et se synchronisent avec la serre partagée lorsque la 4G revient. L’export JSON reste conseillé comme sauvegarde supplémentaire.</p>
     <div class="toolbar">
@@ -255,14 +298,15 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V14 Partagée</h3>
-    <p class="muted">V14 offline-first : Benoît et Carine utilisent la même Serre principale. Les modifications sont conservées localement sans réseau puis synchronisées automatiquement dès qu’une connexion est disponible.</p>
+    <h3>À propos de cette V15 Terrain</h3>
+    <p class="muted">V15 ajoute le mode terrain, les récoltes, la tournée de serre, l’accès aux chambres par QR code et la vérification des mises à jour, tout en conservant la synchronisation offline-first de la V14.</p>
   </div>
 </section>
 </main>
 
 <nav>
   <button class="active" onclick="show('dashboard',this)"><span>⌂</span>Accueil</button>
+  <button onclick="show('field',this)"><span>🚶</span>Terrain</button>
   <button onclick="show('cultures',this)"><span>🌱</span>Cultures</button>
   <button onclick="show('planning',this)"><span>📅</span>Planning</button>
   <button onclick="show('stock',this)"><span>📦</span>Stock</button>
@@ -270,6 +314,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   <button onclick="show('more',this)"><span>⚙</span>Plus</button>
 </nav>
 
+
+<button class="fab" aria-label="Action rapide" onclick="openQuickMenu()">＋</button>
 
 <div id="authGate" class="authGate">
   <div class="authCard">
@@ -293,7 +339,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V14 PARTAGE & SYNCHRONISATION
+   GESTION SERRE — V15 TERRAIN & RÉCOLTES
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -309,7 +355,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -411,6 +457,8 @@ const SEED = {
   varieties: DEFAULT_VARIETIES,
   cultures:[],
   chamberHistory:[],
+  harvests:[],
+  inspections:[],
   tasks:[],
   stock:[
     {id:'s1',name:'Engrais hydroponique',category:'Engrais',unit:'L',qty:0,min:5,cost:0,supplier:'',purchaseDate:'',lot:'',varietyId:'',germinationRate:'',germinationDate:'',notes:''},
@@ -559,6 +607,8 @@ function migrateData(raw){
   x.sales = Array.isArray(x.sales) ? x.sales : [];
   x.costs = Array.isArray(x.costs) ? x.costs : [];
   x.chamberHistory = Array.isArray(x.chamberHistory) ? x.chamberHistory : [];
+  x.harvests = Array.isArray(x.harvests) ? x.harvests : [];
+  x.inspections = Array.isArray(x.inspections) ? x.inspections : [];
 
   db=x; // nécessaire pour blockById pendant la migration des cultures
   x.cultures=x.cultures.map(migrateCulture);
@@ -661,7 +711,7 @@ function modal(html){
   getEl('sheet').innerHTML=html;
   getEl('modal').classList.add('open');
 }
-function closeModal(){ getEl('modal')?.classList.remove('open'); }
+function closeModal(){ stopQRScanner(); getEl('modal')?.classList.remove('open'); }
 
 // ---------- 5. TRI DES VARIÉTÉS ----------
 function sortedVarieties(includeArchived=true){
@@ -818,6 +868,8 @@ function chamberHistoryItems(blockId,n){
 // ---------- 7. RENDU GLOBAL / TABLEAU DE BORD ----------
 function renderAll(){
   renderDash();
+  renderField();
+  renderHarvestSummary();
   renderBlocks();
   renderChamberMap();
   renderCultures();
@@ -833,6 +885,7 @@ function renderAll(){
 }
 
 function renderDash(){
+  renderTodayFocus();
   const now=new Date();
   const in7=new Date(now); in7.setDate(in7.getDate()+7);
   const due=db.tasks.filter(t=>{
@@ -852,7 +905,7 @@ function renderDash(){
     ['📈','Marge du mois',money(revenue-costs)]
   ].map(x=>`<div class="card metric"><span>${x[0]}</span><b>${x[2]}</b><small>${x[1]}</small></div>`).join('');
 
-  const upcoming=db.tasks.filter(t=>!t.done&&t.date).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
+  const upcoming=db.tasks.filter(t=>t.status!=='done'&&!t.done&&t.date).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
   getEl('upcoming').innerHTML=upcoming.length
     ? upcoming.map(t=>`<div class="item"><b>${fmt(t.date)}</b> · ${esc(t.title)}<br><span class="muted">${esc(varietyName(t.varietyId))} · ${esc(blockName(t.blockId))}</span></div>`).join('')
     : '<div class="empty">Aucune échéance.</div>';
@@ -861,6 +914,40 @@ function renderDash(){
   getEl('alerts').innerHTML=low.length
     ? low.map(s=>`<div class="item"><span class="dangerText">⚠ ${esc(s.name)}</span> · ${s.qty} ${esc(s.unit)} (seuil ${s.min})</div>`).join('')
     : '<div class="empty">Aucune alerte.</div>';
+}
+
+
+function renderTodayFocus(){
+  const title=getEl('todayTitle'), who=getEl('todayWho'), host=getEl('todayFocus');
+  if(!host) return;
+  const me=cloud.user?.id?memberName(cloud.user.id):'';
+  if(title) title.textContent='Aujourd’hui dans la serre';
+  if(who) who.textContent=me?`${me} · ${new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`:new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  const today=todayISO();
+  const overdue=db.tasks.filter(t=>t.status!=='done'&&!t.done&&t.date&&t.date<today);
+  const todays=db.tasks.filter(t=>t.status!=='done'&&!t.done&&t.date===today);
+  const planned=db.cultures.filter(c=>c.status==='Active'&&c.harvest===today);
+  const low=db.stock.filter(s=>Number(s.qty)<=Number(s.min));
+  const items=[];
+  if(overdue.length) items.push(`<div class="priorityItem"><b class="dangerText">⚠ ${overdue.length} tâche(s) en retard</b> · <button class="secondary" onclick="show('planning')">Voir</button></div>`);
+  if(todays.length) items.push(`<div class="priorityItem"><b>📅 ${todays.length} tâche(s) aujourd’hui</b></div>`);
+  if(planned.length) items.push(`<div class="priorityItem"><b>⚖ ${planned.length} récolte(s) prévue(s)</b> aujourd’hui</div>`);
+  if(low.length) items.push(`<div class="priorityItem"><b>📦 ${low.length} alerte(s) stock</b></div>`);
+  if(!items.length) items.push('<div class="priorityItem muted">✓ Rien d’urgent signalé pour aujourd’hui.</div>');
+  host.innerHTML=items.join('');
+}
+
+function renderHarvestSummary(){
+  const el=getEl('harvestSummary'); if(!el) return;
+  const today=todayISO(), month=today.slice(0,7);
+  const kgToday=db.harvests.filter(h=>h.date===today&&String(h.unit).toLowerCase()==='kg').reduce((s,h)=>s+Number(h.qty||0),0);
+  const kgMonth=db.harvests.filter(h=>String(h.date||'').startsWith(month)&&String(h.unit).toLowerCase()==='kg').reduce((s,h)=>s+Number(h.qty||0),0);
+  const entriesToday=db.harvests.filter(h=>h.date===today).length;
+  el.innerHTML=`<div class="grid3">
+    <div><div class="harvestMetric">${kgToday.toLocaleString('fr-FR')} kg</div><div class="harvestUnit">aujourd’hui</div></div>
+    <div><div class="harvestMetric">${kgMonth.toLocaleString('fr-FR')} kg</div><div class="harvestUnit">ce mois</div></div>
+    <div><div class="harvestMetric">${entriesToday}</div><div class="harvestUnit">saisie(s) aujourd’hui</div></div>
+  </div>`;
 }
 
 function renderOccupancySummary(){
@@ -979,6 +1066,7 @@ function openChamber(blockId,n){
       <div class="toolbar" style="margin-top:7px">
         <button class="secondary" onclick="openRemovePlants('${culture.id}',${n})">− Retirer</button>
         <button class="secondary" onclick="openMoveAllocation('${culture.id}',${n})">↔ Déplacer</button>
+        ${waiting?'':`<button onclick="openHarvest('${culture.id}',${n})">⚖ Récolte</button>`}
         <button class="secondary" onclick="openEditCulture('${culture.id}')">Modifier</button>
         <button class="danger" onclick="releaseOneChamber('${culture.id}',${n})">Libérer</button>
       </div>
@@ -1339,6 +1427,194 @@ function releaseOneChamber(cultureId,n){
   if(!c.allocations.length){ c.status='Terminée'; c.endDate=todayISO(); }
   closeModal(); persist({message:'Chambre libérée'});
 }
+
+
+// ---------- 10. MODE TERRAIN / RÉCOLTES / QR ----------
+let tourState={blockId:'',mode:'occupied',chambers:[],index:0,ras:0,notes:0,problems:0};
+let qrStream=null,qrTimer=null;
+let harvestReturnToTour=false;
+
+function openQuickMenu(){
+  modal(`<h2>Action rapide</h2><div class="bigActions">
+    <button onclick="openHarvest()">⚖ Récolte</button>
+    <button class="secondary" onclick="startTour()">🚶 Tournée</button>
+    <button class="secondary" onclick="openQRScanner()">▣ Scanner QR</button>
+    <button class="secondary" onclick="openCulture()">🌱 Culture</button>
+    <button class="secondary" onclick="openTask()">📅 Tâche</button>
+    <button class="secondary" onclick="quickStockMove()">📦 Stock</button>
+  </div><button class="secondary" style="width:100%" onclick="closeModal()">Fermer</button>`);
+}
+
+function harvestCultureOptions(selected=''){
+  const arr=db.cultures.filter(c=>c.status==='Active');
+  return '<option value="">— choisir une culture —</option>'+arr.map(c=>`<option value="${c.id}" ${c.id===selected?'selected':''}>${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))} · ${allocationsOf(c).map(a=>chamberCode(c.blockId,a.chamberNumber)).join(', ')}</option>`).join('');
+}
+function openHarvest(cultureId='',chamberNumber='',returnToTour=false){
+  harvestReturnToTour=returnToTour;
+  modal(`<h2>⚖ Enregistrer une récolte</h2>
+    <label>Date</label><input id="hdate" type="date" value="${todayISO()}">
+    <label>Culture</label><select id="hculture" onchange="refreshHarvestChambers()">${harvestCultureOptions(cultureId)}</select>
+    <label>Chambre</label><select id="hchamber"></select>
+    <div class="row"><div><label>Quantité</label><input id="hqty" type="number" min="0" step=".01" placeholder="0"></div>
+    <div><label>Unité</label><select id="hunit"><option value="kg">kg</option><option value="g">g</option><option value="pièce">pièce</option><option value="botte">botte</option><option value="barquette">barquette</option></select></div></div>
+    <label>Qualité</label><select id="hquality"><option>Très bonne</option><option selected>Bonne</option><option>Correcte</option><option>Déclassée</option></select>
+    <label>Notes</label><textarea id="hnotes" placeholder="calibre, qualité, destination…"></textarea>
+    <br><button onclick="saveHarvest()">Enregistrer</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
+  refreshHarvestChambers(chamberNumber);
+}
+function refreshHarvestChambers(preselect=''){
+  const host=getEl('hchamber'); if(!host)return;
+  const c=db.cultures.find(x=>x.id===getEl('hculture')?.value);
+  const opts=c?allocationsOf(c).map(a=>`<option value="${a.chamberNumber}" ${String(a.chamberNumber)===String(preselect)?'selected':''}>${chamberCode(c.blockId,a.chamberNumber)}</option>`).join(''):'';
+  host.innerHTML='<option value="">Toutes / non précisée</option>'+opts;
+}
+function saveHarvest(){
+  const c=db.cultures.find(x=>x.id===getEl('hculture').value);
+  const qty=Number(getEl('hqty').value||0);
+  if(!c){alert('Choisis la culture concernée.');return}
+  if(qty<=0){alert('Renseigne une quantité récoltée.');return}
+  db.harvests.push({
+    id:uid('harv'),date:getEl('hdate').value,cultureId:c.id,varietyId:c.varietyId,blockId:c.blockId,
+    chamberNumber:Number(getEl('hchamber').value||0)||'',qty,unit:getEl('hunit').value,
+    quality:getEl('hquality').value,notes:getEl('hnotes').value.trim(),createdBy:cloud.user?.id||''
+  });
+  closeModal();persist({message:'Récolte enregistrée'});
+  if(harvestReturnToTour){harvestReturnToTour=false;setTimeout(()=>showTourStep(),80)}
+}
+function deleteHarvest(id){
+  if(!confirm('Supprimer cette saisie de récolte ?'))return;
+  db.harvests=db.harvests.filter(h=>h.id!==id);persist({message:'Récolte supprimée'});
+}
+function renderHarvests(){
+  const el=getEl('harvestList');if(!el)return;
+  const arr=[...db.harvests].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,30);
+  el.innerHTML=arr.length?arr.map(h=>`<div class="item"><div class="row"><div><b>${fmt(h.date)} · ${esc(varietyName(h.varietyId))}</b><br>
+    <span class="harvestMetric" style="font-size:18px">${Number(h.qty||0).toLocaleString('fr-FR')} ${esc(h.unit)}</span>
+    <span class="muted"> · ${esc(blockName(h.blockId))}${h.chamberNumber?' · '+esc(chamberCode(h.blockId,h.chamberNumber)):''} · ${esc(h.quality||'')}</span>
+    ${h.notes?`<br><span class="small muted">${esc(h.notes)}</span>`:''}</div><button class="danger fit" onclick="deleteHarvest('${h.id}')">×</button></div></div>`).join(''):'<div class="empty">Aucune récolte enregistrée.</div>';
+}
+function inspectionTypeClass(type){return type==='Problème'?'problem':type==='Observation'?'note':'ok'}
+function renderInspections(){
+  const el=getEl('inspectionList');if(!el)return;
+  const arr=[...db.inspections].sort((a,b)=>String(b.createdAt||b.date||'').localeCompare(String(a.createdAt||a.date||''))).slice(0,30);
+  el.innerHTML=arr.length?arr.map(i=>`<div class="item"><b>${esc(chamberCode(i.blockId,i.chamberNumber))}</b> <span class="obsTag ${inspectionTypeClass(i.type)}">${esc(i.type)}</span><br>
+    <span class="small muted">${fmt(i.date)} · ${esc(memberName(i.userId))}</span>${i.note?`<br>${esc(i.note)}`:''}</div>`).join(''):'<div class="empty">Aucune observation de tournée.</div>';
+}
+function renderField(){renderHarvests();renderInspections()}
+
+function openChamberLookup(){
+  modal(`<h2>Ouvrir une chambre</h2><label>Code</label><input id="lookupCode" inputmode="text" autocapitalize="characters" placeholder="ex. L17 ou S04">
+  <br><button onclick="openChamberByCode(getEl('lookupCode').value)">Ouvrir</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function parseChamberCode(raw){
+  const value=String(raw||'').toUpperCase();
+  const m=value.match(/(?:CHAMBER=|^|[^A-Z])([A-Z])0*(\d{1,3})(?:\b|$)/i);
+  if(!m)return null;
+  const prefix=m[1].toUpperCase(),n=Number(m[2]);
+  const block=db.blocks.find(b=>String(blockPrefix(b.id)).toUpperCase()===prefix);
+  if(!block||n<1||n>Number(block.chambers||0))return null;
+  return {blockId:block.id,n};
+}
+function openChamberByCode(raw){
+  const target=parseChamberCode(raw);
+  if(!target){alert('Code de chambre non reconnu. Exemple : L17 ou S04.');return}
+  stopQRScanner();closeModal();show('cultures',null);setTimeout(()=>openChamber(target.blockId,target.n),80);
+}
+async function openQRScanner(){
+  modal(`<h2>▣ Scanner une chambre</h2><p class="small muted">Présente le QR de la chambre devant la caméra.</p>
+    <video id="qrVideo" class="qrVideo" playsinline muted></video>
+    <div id="qrMessage" class="small muted">Initialisation de la caméra…</div>
+    <label>Ou saisir le code</label><div class="row"><input id="qrManual" placeholder="L17"><button class="fit" onclick="openChamberByCode(getEl('qrManual').value)">Ouvrir</button></div>
+    <br><button class="secondary" style="width:100%" onclick="closeModal()">Fermer</button>`);
+  await startQRDetection();
+}
+async function startQRDetection(){
+  const msg=getEl('qrMessage'),video=getEl('qrVideo');
+  if(!video)return;
+  if(!navigator.mediaDevices?.getUserMedia){if(msg)msg.textContent='Caméra non disponible. Utilise la saisie du code.';return}
+  try{
+    qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    video.srcObject=qrStream;await video.play();
+    if(!('BarcodeDetector' in window)){if(msg)msg.textContent='La caméra est ouverte, mais la détection QR automatique n’est pas disponible dans ce navigateur. Utilise la saisie du code ou l’appareil photo du téléphone.';return}
+    const formats=await BarcodeDetector.getSupportedFormats().catch(()=>[]);
+    if(!formats.includes('qr_code')){if(msg)msg.textContent='Détection QR non prise en charge ici. Utilise la saisie du code.';return}
+    const detector=new BarcodeDetector({formats:['qr_code']});
+    if(msg)msg.textContent='Caméra prête.';
+    const scan=async()=>{
+      if(!qrStream||!getEl('qrVideo'))return;
+      try{
+        const codes=await detector.detect(video);
+        if(codes?.[0]?.rawValue){openChamberByCode(codes[0].rawValue);return}
+      }catch(_){}
+      qrTimer=setTimeout(scan,350);
+    };scan();
+  }catch(e){if(msg)msg.textContent='Impossible d’ouvrir la caméra. Vérifie l’autorisation caméra ou saisis le code manuellement.'}
+}
+function stopQRScanner(){
+  clearTimeout(qrTimer);qrTimer=null;
+  if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}
+}
+
+function startTour(){
+  const opts=db.blocks.filter(b=>Number(b.chambers||0)>0).map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+  modal(`<h2>🚶 Tournée de serre</h2><label>Bloc</label><select id="tourBlock">${opts}</select>
+    <label>Parcours</label><select id="tourMode"><option value="occupied">Chambres occupées / réservées</option><option value="all">Toutes les chambres</option></select>
+    <p class="small muted">Un appui sur « RAS » enregistre le contrôle puis passe directement à la chambre suivante.</p>
+    <button onclick="beginTour()">Commencer</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function beginTour(){
+  const blockId=getEl('tourBlock').value,mode=getEl('tourMode').value,b=blockById(blockId);
+  let chambers=Array.from({length:Number(b?.chambers||0)},(_,i)=>i+1);
+  if(mode==='occupied')chambers=chambers.filter(n=>{const s=chamberState(blockId,n);return s.used+s.reserved>0});
+  if(!chambers.length){alert('Aucune chambre à contrôler avec ce filtre.');return}
+  tourState={blockId,mode,chambers,index:0,ras:0,notes:0,problems:0};showTourStep();
+}
+function showTourStep(){
+  if(tourState.index>=tourState.chambers.length){finishTour();return}
+  const n=tourState.chambers[tourState.index],s=chamberState(tourState.blockId,n),occ=chamberOccupants(tourState.blockId,n);
+  const pct=Math.round((tourState.index/tourState.chambers.length)*100);
+  modal(`<h2>Tournée · ${tourState.index+1}/${tourState.chambers.length}</h2><div class="tourProgress"><i style="width:${pct}%"></i></div>
+    <div class="tourChamber">${esc(chamberCode(tourState.blockId,n))}</div>
+    <div class="chamberSummary"><div><b>${s.used}</b><span class="small">plantés</span></div><div><b>${s.reserved}</b><span class="small">réservés</span></div><div><b>${s.free}</b><span class="small">libres</span></div></div>
+    <div class="small">${occ.map(x=>`${esc(varietyName(x.culture.varietyId))} · ${x.allocation.qty}`).join('<br>')||'<span class="muted">Chambre libre</span>'}</div>
+    <div class="bigActions"><button onclick="tourRAS()">✓ RAS</button><button class="secondary" onclick="openTourObservation('Observation')">📝 Observation</button><button class="danger" onclick="openTourObservation('Problème')">⚠ Problème</button><button class="secondary" onclick="openHarvestFromTour()">⚖ Récolte</button></div>
+    <div class="toolbar"><button class="secondary" onclick="tourBack()" ${tourState.index===0?'disabled':''}>← Précédente</button><button class="secondary" onclick="tourNext()">Passer →</button><button class="secondary" onclick="closeModal()">Quitter</button></div>`);
+}
+function saveInspection(type,note='',taskCreated=false){
+  const n=tourState.chambers[tourState.index];
+  db.inspections.push({id:uid('insp'),date:todayISO(),createdAt:new Date().toISOString(),blockId:tourState.blockId,chamberNumber:n,type,note,userId:cloud.user?.id||'',taskCreated});
+}
+function tourRAS(){saveInspection('RAS');tourState.ras++;persist({message:'Contrôle RAS enregistré',undo:false,render:false});tourNext()}
+function openTourObservation(type){
+  const n=tourState.chambers[tourState.index];
+  modal(`<h2>${esc(type)} · ${esc(chamberCode(tourState.blockId,n))}</h2><label>Observation</label><textarea id="tourNote" placeholder="Décris ce que tu constates…"></textarea>
+    <label>Date de la tâche si action nécessaire</label><input id="tourTaskDate" type="date" value="${todayISO()}">
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input id="tourCreateTask" type="checkbox" style="width:auto"> Créer une tâche automatiquement</label>
+    <button onclick="saveTourObservation('${type}')">Enregistrer</button><button class="secondary" onclick="showTourStep()">Retour</button>`);
+}
+function saveTourObservation(type){
+  const note=getEl('tourNote').value.trim();if(!note){alert('Ajoute une courte observation.');return}
+  const createTask=getEl('tourCreateTask').checked,n=tourState.chambers[tourState.index];
+  if(createTask){
+    const occ=chamberOccupants(tourState.blockId,n),first=occ[0]?.culture;
+    db.tasks.push({id:uid('t'),title:`${type} ${chamberCode(tourState.blockId,n)} : ${note}`,date:getEl('tourTaskDate').value,varietyId:first?.varietyId||'',blockId:tourState.blockId,done:false,status:'todo',assignee:cloud.user?.id||'all',_localUpdatedBy:cloud.user?.id||'',_localUpdatedAt:new Date().toISOString()});
+  }
+  saveInspection(type,note,createTask);if(type==='Problème')tourState.problems++;else tourState.notes++;
+  persist({message:'Observation enregistrée',undo:false,render:false});tourNext();
+}
+function openHarvestFromTour(){
+  const n=tourState.chambers[tourState.index],occ=chamberOccupants(tourState.blockId,n).filter(x=>x.culture.status==='Active');
+  if(!occ.length){alert('Aucune culture active dans cette chambre.');return}
+  openHarvest(occ[0].culture.id,n,true);
+}
+function tourNext(){tourState.index++;showTourStep()}
+function tourBack(){tourState.index=Math.max(0,tourState.index-1);showTourStep()}
+function finishTour(){
+  renderAll();
+  modal(`<h2>✓ Tournée terminée</h2><div class="grid3"><div class="card metric"><b>${tourState.ras}</b><small>RAS</small></div><div class="card metric"><b>${tourState.notes}</b><small>Observations</small></div><div class="card metric"><b>${tourState.problems}</b><small>Problèmes</small></div></div>
+  <button onclick="closeModal();show('field')">Voir le mode terrain</button><button class="secondary" onclick="closeModal()">Fermer</button>`);
+}
+
 
 // ---------- 10. PLANNING PARTAGÉ ----------
 function cachedTeam(){
@@ -1842,6 +2118,8 @@ const ENTITY_COLLECTIONS={
   variety:'varieties',
   culture:'cultures',
   chamber_history:'chamberHistory',
+  harvest:'harvests',
+  inspection:'inspections',
   task:'tasks',
   stock:'stock',
   stock_movement:'stockMovements',
@@ -1923,7 +2201,7 @@ function recordMap(rows){
   return m;
 }
 function hasMeaningfulLocalData(){
-  if((db.cultures||[]).length||(db.tasks||[]).length||(db.sales||[]).length||(db.costs||[]).length||(db.chamberHistory||[]).length) return true;
+  if((db.cultures||[]).length||(db.tasks||[]).length||(db.sales||[]).length||(db.costs||[]).length||(db.chamberHistory||[]).length||(db.harvests||[]).length||(db.inspections||[]).length) return true;
   if((db.stock||[]).some(s=>Number(s.qty||0)>0||s.supplier||s.lot)) return true;
   const defaultIds=new Set(DEFAULT_VARIETIES.map(v=>v.id));
   if((db.varieties||[]).some(v=>!defaultIds.has(v.id))) return true;
@@ -2094,7 +2372,7 @@ async function fetchRemoteRecords(){
 function emptySharedDb(){
   return {
     schemaVersion:APP_VERSION,greenhouse:clone(SEED.greenhouse),
-    blocks:[],varieties:[],cultures:[],chamberHistory:[],tasks:[],
+    blocks:[],varieties:[],cultures:[],chamberHistory:[],harvests:[],inspections:[],tasks:[],
     stock:[],stockMovements:[],sales:[],costs:[]
   };
 }
@@ -2183,7 +2461,7 @@ function actionLabel(a){
 function entityLabel(t){
   return ({task:'une tâche',culture:'une culture',variety:'une variété',stock:'un article de stock',
     stock_movement:'un mouvement de stock',sale:'une vente',cost:'un coût',block:'un bloc',
-    chamber_history:'une chambre'}[t]||t||'un élément');
+    harvest:'une récolte',inspection:'une observation de tournée',chamber_history:'une chambre'}[t]||t||'un élément');
 }
 function renderActivity(){
   const el=getEl('activityList');if(!el)return;
@@ -2326,6 +2604,33 @@ window.addEventListener('offline',()=>{setSyncState('offline','Hors connexion')}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&navigator.onLine&&cloud.session)syncNow(false)});
 
 
+
+// ---------- MISE À JOUR DE L’APPLICATION ----------
+async function checkForUpdate(manual=false){
+  const host=getEl('updateStatus');
+  if(!navigator.onLine){if(host)host.innerHTML='<div class="updateReady">Hors connexion : vérification impossible pour le moment.</div>';return}
+  try{
+    if(host)host.textContent='Vérification…';
+    const res=await fetch(`./manifest.json?v=${Date.now()}`,{cache:'no-store'});
+    const m=await res.json();
+    const remote=Number(m.version||APP_VERSION);
+    if(remote>APP_VERSION){
+      if(host)host.innerHTML=`<div class="updateReady"><b>Nouvelle version disponible : V${remote}</b><br><button style="margin-top:8px" onclick="applyAppUpdate()">Mettre à jour maintenant</button></div>`;
+    }else{
+      if(host)host.innerHTML=`<div class="updateOk">✓ Gestion Serre V${APP_VERSION} est à jour.</div>`;
+      if(manual)setTimeout(()=>{if(host)host.innerHTML=`<div class="updateOk">✓ Gestion Serre V${APP_VERSION} est à jour.</div>`},200);
+    }
+  }catch(e){if(host)host.textContent='Impossible de vérifier la mise à jour pour le moment.'}
+}
+async function applyAppUpdate(){
+  const host=getEl('updateStatus');if(host)host.textContent='Mise à jour en cours…';
+  try{
+    if('serviceWorker' in navigator){const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update()}
+    setTimeout(()=>location.reload(),1200);
+  }catch(_){location.reload()}
+}
+
+
 // ---------- 14. SAUVEGARDE ----------
 function exportData(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -2400,6 +2705,9 @@ async function init(){
     setSyncState('login','Connexion requise');
     getEl('offlineSessionHint').textContent='La première connexion nécessite Internet. Ensuite, les données restent consultables et modifiables hors ligne.';
   }
+  setTimeout(()=>checkForUpdate(false),2500);
+  const deepCode=new URLSearchParams(location.search).get('chamber');
+  if(deepCode){setTimeout(()=>{if(cloud.session)openChamberByCode(deepCode)},3200)}
 }
 
 init();
