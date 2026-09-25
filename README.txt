@@ -1,32 +1,47 @@
-GESTION SERRE — V15 TERRAIN & RÉCOLTES
+GESTION SERRE — V16 SÉCURITÉ & CONFORT
 
-Base : V14 Partage & Synchronisation, conservée intégralement.
+Base : V15 Terrain & Récoltes. Toutes les fonctions V15 sont conservées.
 
-NOUVEAUTÉS V15
-- Accueil « Aujourd’hui dans la serre » avec priorités.
-- Bouton flottant + pour les actions les plus fréquentes.
-- Mode Terrain dédié.
-- Mode Tournée : parcours des chambres, RAS, observation, problème, création facultative de tâche.
-- Récoltes : date, culture, chambre, quantité, unité, qualité, notes.
-- Bouton Récolte directement depuis une chambre.
-- Accès chambre par QR code ou saisie L01 / S01.
-- PDF prêt à imprimer : qr-chambres.pdf (116 chambres).
-- Vérification intégrée des mises à jour dans Outils.
-- Synchronisation de harvests et inspections entre Benoît et Carine.
+NOUVEAUTÉS V16
+- Sauvegarde complète au format JSON enrichi.
+- Sauvegarde téléchargeable sur téléphone OU ordinateur.
+- Historique local des 10 derniers snapshots dans IndexedDB.
+- Snapshot automatique au maximum une fois par 24 h lorsque l'application est ouverte.
+- Aperçu avant restauration : date, version et comptages.
+- Copie de sécurité automatique juste avant une restauration.
+- Restauration complète réservée au propriétaire lorsque la serre partagée est active.
+- Reprise du travail après passage dans Chrome :
+  * écran courant mémorisé ;
+  * position de défilement mémorisée ;
+  * fenêtre / formulaire en cours mémorisé ;
+  * champs saisis sauvegardés automatiquement.
+- Bouton « Rechercher » sur chaque variété :
+  * germination ;
+  * conseils de culture.
+- Correctif de fiabilité de la file de synchronisation pour les suppressions hors ligne.
 
-QR
-Les QR contiennent l’URL GitHub Pages avec ?chamber=L01 (ou S01, etc.).
-Ils peuvent donc être scannés avec l’appareil photo du téléphone. Gestion Serre accepte également le scan QR depuis le Mode Terrain lorsque BarcodeDetector est disponible.
+SAUVEGARDE SUR ORDINATEUR
+1. Ouvrir l'adresse habituelle de Gestion Serre sur le PC.
+2. Se connecter avec le compte Benoît.
+3. Attendre l'indicateur vert « Synchronisé ».
+4. Ouvrir Plus → Sauvegardes & restauration.
+5. Cliquer « Créer une sauvegarde complète ».
+6. Conserver le fichier Gestion_Serre_sauvegarde_....json dans un dossier de sauvegarde du PC.
 
-MISE À JOUR
-Pour GitHub Pages, remplacer / ajouter :
+En cas de téléphone perdu ou cassé, les données synchronisées restent dans Supabase.
+La sauvegarde sur ordinateur constitue une protection supplémentaire indépendante de l'appareil mobile.
+
+CONTINUITÉ ANDROID
+Android peut suspendre ou fermer une PWA en arrière-plan. V16 ne peut pas empêcher Android de le faire,
+mais elle mémorise le travail en cours au fil de la saisie. Au retour dans Gestion Serre, le formulaire et ses champs
+sont restaurés automatiquement (hors lecteur QR/caméra).
+
+MISE À JOUR GITHUB PAGES
+Remplacer / ajouter les 5 fichiers :
 - index.html
 - manifest.json
 - sw.js
 - README.txt
 - qr-chambres.pdf
 
-Aucune nouvelle configuration Supabase n’est nécessaire : les nouvelles données utilisent la table public.records déjà en place.
-
-IMPORTANT
-Faire un export JSON avant toute mise à jour majeure reste une bonne sauvegarde de sécurité.
+Aucune nouvelle configuration Supabase n'est nécessaire.

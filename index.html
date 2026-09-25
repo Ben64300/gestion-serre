@@ -130,6 +130,23 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 .obsTag.problem{background:#f7dddd;color:#7c2626}.obsTag.note{background:#fff1bf;color:#614900}.obsTag.ok{background:#dff1e5;color:#174b31}
 @media(max-width:430px){.fab{right:14px;bottom:87px}.fieldActions{grid-template-columns:1fr 1fr}}
 
+
+/* V16 : sécurité, sauvegarde et continuité */
+.backupGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.backupStat{border:1px solid var(--border);border-radius:12px;padding:10px;background:#fafcfb}
+.backupStat b{display:block;font-size:18px;margin-bottom:3px}
+.backupHistory{margin-top:10px}
+.backupItem{border-top:1px solid var(--border);padding:9px 0}
+.backupItem:first-child{border-top:0}
+.backupActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.resumeNote{background:#eaf4ff;border:1px solid #b8d8f6;border-radius:10px;padding:9px;margin:8px 0;color:#244b67}
+.safeNote{background:#eef7f1;border:1px solid #bdd8c7;border-radius:10px;padding:9px;margin:8px 0}
+.restoreWarning{background:#fff3d6;border:1px solid #e3c572;border-radius:10px;padding:10px;margin:10px 0}
+.researchActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+@media(max-width:520px){
+  .backupGrid,.researchActions{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -284,22 +301,26 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V15 installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V16 installée.</div>
   </div>
 
   <div class="card">
-    <h3>Sauvegarde</h3>
-    <p class="muted">Les données restent disponibles localement hors connexion et se synchronisent avec la serre partagée lorsque la 4G revient. L’export JSON reste conseillé comme sauvegarde supplémentaire.</p>
-    <div class="toolbar">
-      <button onclick="exportData()">Exporter JSON</button>
-      <button class="secondary" onclick="document.getElementById('importFile').click()">Importer JSON</button>
+    <div class="row"><h3>🛡 Sauvegardes & restauration</h3><button class="secondary fit" onclick="renderBackupPanel()">↻</button></div>
+    <p class="muted">Supabase protège déjà contre la perte du téléphone. Cette section crée en plus une copie indépendante que tu peux conserver sur ton ordinateur.</p>
+    <div id="backupPanel"></div>
+    <div class="toolbar" style="margin-top:10px">
+      <button onclick="createCompleteBackup(true)">💾 Créer une sauvegarde complète</button>
+      <button class="secondary" onclick="document.getElementById('restoreFile').click()">↩ Restaurer un fichier</button>
     </div>
-    <input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)">
+    <input id="restoreFile" type="file" accept=".json,application/json" style="display:none" onchange="previewBackupFile(event)">
+    <div class="safeNote small">
+      <b>Pour sauvegarder sur ton ordinateur :</b> ouvre la même adresse Gestion Serre sur le PC, connecte-toi, attends 🟢 Synchronisé puis clique sur « Créer une sauvegarde complète ». Le fichier sera enregistré dans les téléchargements de l’ordinateur.
+    </div>
   </div>
 
   <div class="card">
-    <h3>À propos de cette V15 Terrain</h3>
-    <p class="muted">V15 ajoute le mode terrain, les récoltes, la tournée de serre, l’accès aux chambres par QR code et la vérification des mises à jour, tout en conservant la synchronisation offline-first de la V14.</p>
+    <h3>À propos de cette V16 Sécurité & Confort</h3>
+    <p class="muted">V16 renforce la sécurité des données et la continuité de travail : sauvegardes complètes, restauration avec aperçu, snapshots locaux, reprise automatique des formulaires et retour à l’écran exact après un passage dans Chrome.</p>
   </div>
 </section>
 </main>
@@ -339,7 +360,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V15 TERRAIN & RÉCOLTES
+   GESTION SERRE — V16 SÉCURITÉ & CONFORT
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -355,7 +376,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -369,8 +390,17 @@ const SESSION_KEY = 'gestion_serre_v14_session';
 const TEAM_CACHE_KEY = 'gestion_serre_v14_team';
 const CLOUD_LINK_KEY = 'gestion_serre_v14_greenhouse';
 const SYNC_DB_NAME = 'gestion_serre_v14_sync';
-const SYNC_DB_VERSION = 1;
+const SYNC_DB_VERSION = 2;
 const SYNC_INTERVAL_MS = 20000;
+
+const WORKSPACE_KEY = 'gestion_serre_v16_workspace';
+const LAST_EXPORT_KEY = 'gestion_serre_v16_last_export';
+const BACKUP_FORMAT = 'gestion-serre-backup';
+const BACKUP_FORMAT_VERSION = 1;
+const AUTO_SNAPSHOT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const MAX_LOCAL_BACKUPS = 10;
+let workspaceSaveTimer = null;
+
 
 
 const BLOCKS_DEFAULT = [
@@ -697,6 +727,7 @@ function activateView(id,button=null){
   }
   localStorage.setItem(NAV_KEY,id);
   renderAll();
+  scheduleWorkspaceSave();
 }
 function show(id,button){
   if(currentView()!==id) history.pushState({view:id},'',location.href);
@@ -710,8 +741,109 @@ window.addEventListener('popstate',event=>{
 function modal(html){
   getEl('sheet').innerHTML=html;
   getEl('modal').classList.add('open');
+  scheduleWorkspaceSave();
 }
-function closeModal(){ stopQRScanner(); getEl('modal')?.classList.remove('open'); }
+function closeModal(){
+  stopQRScanner();
+  getEl('modal')?.classList.remove('open');
+  clearWorkspaceModal();
+}
+
+function serializableModalFields(){
+  const sheet=getEl('sheet');
+  if(!sheet) return [];
+  return [...sheet.querySelectorAll('input,select,textarea')].filter(el=>{
+    const type=(el.type||'').toLowerCase();
+    return type!=='file' && type!=='password';
+  }).map((el,index)=>({
+    id:el.id||'',name:el.name||'',index,
+    type:(el.type||el.tagName||'').toLowerCase(),
+    value:el.value,
+    checked:!!el.checked
+  }));
+}
+function currentWorkspaceState(){
+  const modalEl=getEl('modal'), sheet=getEl('sheet');
+  const modalOpen=!!modalEl?.classList.contains('open');
+  const modalHtml=modalOpen && sheet && !sheet.querySelector('#qrReader') ? sheet.innerHTML : '';
+  return {
+    savedAt:new Date().toISOString(),
+    view:currentView(),
+    scrollY:window.scrollY||0,
+    modalOpen:!!modalHtml,
+    modalHtml,
+    fields:modalHtml?serializableModalFields():[]
+  };
+}
+function saveWorkspaceState(immediate=false){
+  const write=()=>{
+    const state=currentWorkspaceState();
+    try{localStorage.setItem(WORKSPACE_KEY,JSON.stringify(state))}catch(_){}
+    metaSet('workspace',state);
+  };
+  if(immediate){clearTimeout(workspaceSaveTimer);write();return}
+  clearTimeout(workspaceSaveTimer);
+  workspaceSaveTimer=setTimeout(write,180);
+}
+function scheduleWorkspaceSave(){ saveWorkspaceState(false); }
+function clearWorkspaceModal(){
+  let state={};
+  try{state=JSON.parse(localStorage.getItem(WORKSPACE_KEY)||'{}')||{}}catch(_){}
+  state.savedAt=new Date().toISOString();
+  state.view=currentView();
+  state.scrollY=window.scrollY||0;
+  state.modalOpen=false;state.modalHtml='';state.fields=[];
+  try{localStorage.setItem(WORKSPACE_KEY,JSON.stringify(state))}catch(_){}
+  metaSet('workspace',state);
+}
+function applyWorkspaceFields(fields=[]){
+  const sheet=getEl('sheet');if(!sheet)return;
+  fields.forEach(f=>{
+    let el=null;
+    if(f.id) el=sheet.querySelector(`#${CSS.escape(f.id)}`);
+    if(!el && f.name) el=sheet.querySelector(`[name="${CSS.escape(f.name)}"]`);
+    if(!el) el=sheet.querySelectorAll('input,select,textarea')[f.index];
+    if(!el)return;
+    if((el.type||'').toLowerCase()==='checkbox'||(el.type||'').toLowerCase()==='radio') el.checked=!!f.checked;
+    else el.value=f.value??'';
+  });
+}
+async function restoreWorkspaceState(skipModal=false){
+  let state=null;
+  try{state=JSON.parse(localStorage.getItem(WORKSPACE_KEY)||'null')}catch(_){}
+  if(!state) state=await metaGet('workspace',null);
+  if(!state) return;
+  const age=Date.now()-new Date(state.savedAt||0).getTime();
+  if(!Number.isFinite(age)||age>7*24*60*60*1000) return;
+
+  if(state.view && getEl(state.view)) activateView(state.view);
+  setTimeout(()=>window.scrollTo(0,Number(state.scrollY||0)),120);
+
+  if(!skipModal && state.modalOpen && state.modalHtml){
+    getEl('sheet').innerHTML=state.modalHtml;
+    getEl('modal').classList.add('open');
+    setTimeout(()=>{
+      applyWorkspaceFields(state.fields||[]);
+      const bar=getEl('undoBar');
+      if(bar){
+        getEl('undoText').textContent='Brouillon récupéré après la reprise de l’application.';
+        bar.classList.add('show');
+        clearTimeout(undoTimer);
+        undoTimer=setTimeout(()=>bar.classList.remove('show'),5000);
+      }
+    },50);
+  }
+}
+document.addEventListener('input',e=>{
+  if(getEl('modal')?.classList.contains('open') && getEl('sheet')?.contains(e.target)) scheduleWorkspaceSave();
+},true);
+document.addEventListener('change',e=>{
+  if(getEl('modal')?.classList.contains('open') && getEl('sheet')?.contains(e.target)) scheduleWorkspaceSave();
+},true);
+window.addEventListener('pagehide',()=>saveWorkspaceState(true));
+window.addEventListener('beforeunload',()=>saveWorkspaceState(true));
+window.addEventListener('scroll',()=>scheduleWorkspaceSave(),{passive:true});
+
 
 // ---------- 5. TRI DES VARIÉTÉS ----------
 function sortedVarieties(includeArchived=true){
@@ -880,6 +1012,7 @@ function renderAll(){
   renderOccupancySummary();
   renderSyncPanel();
   renderActivity();
+  renderBackupPanel();
   updateSaveIndicator();
   updateSyncIndicator();
 }
@@ -1981,6 +2114,7 @@ function renderVarieties(){
             </div>`:''}
           </div>
           <div class="fit varietyActions">
+            <button class="secondary" onclick="openVarietyResearch('${v.id}')">🔎 Rechercher</button>
             <button class="secondary" onclick="openEditVariety('${v.id}')">Modifier</button>
             <button class="secondary" onclick="toggleArchiveVariety('${v.id}')">${v.archived?'Réactiver':'Archiver'}</button>
             <button class="danger" onclick="deleteVariety('${v.id}')">×</button>
@@ -2036,6 +2170,26 @@ function duplicateVariety(data,excludeId=''){
     normalizeVarietyText(v.name)===normalizeVarietyText(data.name) &&
     normalizeVarietyText(v.species)===normalizeVarietyText(data.species)
   );
+}
+
+
+function openVarietyResearch(id){
+  const v=db.varieties.find(x=>x.id===id);
+  if(!v) return;
+  const label=`${v.species||''} ${v.name||''}`.trim();
+  modal(`<h2>🔎 Rechercher des informations</h2>
+    <p><b>${esc(v.species||'Espèce non renseignée')} — ${esc(v.name)}</b></p>
+    <p class="muted">La recherche s’ouvre dans Chrome. Gestion Serre mémorise automatiquement cet écran et les formulaires en cours : si Android ferme l’application en arrière-plan, tu retrouveras ton travail en revenant.</p>
+    <div class="researchActions">
+      <button onclick="launchWebSearch('germination ${label.replace(/'/g,"\\'")} température durée semis')">🌱 Germination</button>
+      <button class="secondary" onclick="launchWebSearch('culture ${label.replace(/'/g,"\\'")} conseils hydroponie')">📚 Conseils de culture</button>
+    </div>
+    <button class="secondary" style="width:100%" onclick="closeModal()">Fermer</button>`);
+}
+function launchWebSearch(query){
+  saveWorkspaceState(true);
+  const url='https://www.google.com/search?q='+encodeURIComponent(query);
+  window.open(url,'_blank','noopener');
 }
 
 function openVariety(){
@@ -2134,6 +2288,10 @@ function openSyncDB(){
       const d=req.result;
       if(!d.objectStoreNames.contains('queue')) d.createObjectStore('queue',{keyPath:'key'});
       if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('backups')){
+        const store=d.createObjectStore('backups',{keyPath:'id'});
+        store.createIndex('createdAt','createdAt',{unique:false});
+      }
     };
     req.onsuccess=()=>resolve(req.result);
     req.onerror=()=>reject(req.error);
@@ -2224,7 +2382,7 @@ async function queueChangesAgainstBase(forceAll=false){
       });
     }
   }
-  Object.keys(base).forEach(async k=>{
+  for(const k of Object.keys(base)){
     if(!(k in currentMap)){
       const [entity_type,...rest]=k.split('|');
       await idbPut('queue',{
@@ -2232,7 +2390,7 @@ async function queueChangesAgainstBase(forceAll=false){
         stamp:Date.now()+Math.random()
       });
     }
-  });
+  }
   updateSyncIndicator();
 }
 function afterLocalMutation(){
@@ -2284,6 +2442,8 @@ async function login(){
     getEl('loginPassword').value='';
     getEl('authGate').classList.add('hidden');
     await connectCloud();
+    await restoreWorkspaceState(false);
+    maybeAutoSnapshot();
   }catch(e){
     setSyncState('login','Connexion requise');
     getEl('loginError').textContent=e.message||'Connexion impossible.';
@@ -2601,7 +2761,10 @@ function startAutoSync(){
 }
 window.addEventListener('online',()=>{updateSyncIndicator();if(cloud.session)connectCloud().then(()=>syncNow(false))});
 window.addEventListener('offline',()=>{setSyncState('offline','Hors connexion')});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&navigator.onLine&&cloud.session)syncNow(false)});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden') saveWorkspaceState(true);
+  if(document.visibilityState==='visible'&&navigator.onLine&&cloud.session) syncNow(false);
+});
 
 
 
@@ -2631,44 +2794,220 @@ async function applyAppUpdate(){
 }
 
 
-// ---------- 14. SAUVEGARDE ----------
-function exportData(){
-  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+// ---------- 14. SAUVEGARDE / RESTAURATION V16 ----------
+function backupCounts(data){
+  const keys=['cultures','tasks','stock','sales','costs','varieties','harvests','inspections','chamberHistory'];
+  const out={};
+  keys.forEach(k=>out[k]=Array.isArray(data?.[k])?data[k].length:0);
+  return out;
+}
+function backupEnvelope(){
+  const who=cloud.user?.id?memberName(cloud.user.id):'Utilisateur';
+  return {
+    format:BACKUP_FORMAT,
+    formatVersion:BACKUP_FORMAT_VERSION,
+    appVersion:APP_VERSION,
+    createdAt:new Date().toISOString(),
+    greenhouse:{
+      id:cloud.greenhouseId||'',
+      name:cloud.greenhouseName||db.greenhouse?.name||'Serre principale'
+    },
+    createdBy:{id:cloud.user?.id||'',name:who},
+    counts:backupCounts(db),
+    data:cleanCloudData(db)
+  };
+}
+function safeBackupFilename(iso=new Date().toISOString()){
+  const stamp=iso.replace(/:/g,'-').replace(/\.\d{3}Z$/,'Z');
+  return `Gestion_Serre_sauvegarde_${stamp}.json`;
+}
+function downloadJsonObject(obj,filename){
+  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=`gestion-serre-sauvegarde-${todayISO()}.json`;
+  a.download=filename;
+  document.body.appendChild(a);
   a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1200);
 }
-function importData(event){
+async function trimLocalBackups(){
+  const all=(await idbAll('backups')).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+  for(const old of all.slice(MAX_LOCAL_BACKUPS)) await idbDelete('backups',old.id);
+}
+async function storeLocalBackup(env,kind='manual'){
+  const item={
+    id:`backup_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+    createdAt:env.createdAt,
+    kind,
+    appVersion:env.appVersion,
+    greenhouseName:env.greenhouse?.name||'Serre principale',
+    counts:env.counts||backupCounts(env.data),
+    envelope:env
+  };
+  await idbPut('backups',item);
+  await trimLocalBackups();
+  await metaSet('lastLocalBackupAt',env.createdAt);
+  return item;
+}
+async function createCompleteBackup(download=true){
+  try{
+    if(navigator.onLine&&cloud.session&&cloud.linked){
+      await syncNow(false);
+    }
+    const env=backupEnvelope();
+    await storeLocalBackup(env,'manual');
+    if(download){
+      downloadJsonObject(env,safeBackupFilename(env.createdAt));
+      localStorage.setItem(LAST_EXPORT_KEY,env.createdAt);
+      await metaSet('lastExternalBackupAt',env.createdAt);
+    }
+    await renderBackupPanel();
+    if(download) alert("Sauvegarde créée. Garde ce fichier sur l'ordinateur ou un autre support.");
+    return env;
+  }catch(e){
+    alert(`Impossible de créer la sauvegarde : ${e.message||e}`);
+  }
+}
+async function maybeAutoSnapshot(){
+  try{
+    const last=await metaGet('lastLocalBackupAt','');
+    const age=last?Date.now()-new Date(last).getTime():Infinity;
+    if(age>=AUTO_SNAPSHOT_INTERVAL_MS){
+      const env=backupEnvelope();
+      await storeLocalBackup(env,'auto');
+      renderBackupPanel();
+    }
+  }catch(_){}
+}
+function formatBackupDate(iso){
+  if(!iso) return 'Jamais';
+  const d=new Date(iso);
+  return isNaN(d)?'—':d.toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
+}
+async function renderBackupPanel(){
+  const host=getEl('backupPanel');if(!host)return;
+  try{
+    const all=(await idbAll('backups')).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+    const lastLocal=all[0]?.createdAt||'';
+    const lastExternal=localStorage.getItem(LAST_EXPORT_KEY)||await metaGet('lastExternalBackupAt','');
+    let pending=0;try{pending=await pendingCount()}catch(_){}
+    host.innerHTML=`
+      <div class="backupGrid">
+        <div class="backupStat"><b>${all.length}</b><span class="muted">snapshot(s) local(aux)</span></div>
+        <div class="backupStat"><b>${pending}</b><span class="muted">modification(s) à synchroniser</span></div>
+      </div>
+      <div class="small" style="margin-top:9px">
+        Dernier snapshot local : <b>${formatBackupDate(lastLocal)}</b><br>
+        Dernier fichier téléchargé depuis cet appareil : <b>${formatBackupDate(lastExternal)}</b>
+      </div>
+      ${all.length?`<details class="backupHistory"><summary><b>Historique local (${Math.min(all.length,MAX_LOCAL_BACKUPS)})</b></summary>
+        ${all.slice(0,MAX_LOCAL_BACKUPS).map(b=>`<div class="backupItem">
+          <b>${formatBackupDate(b.createdAt)}</b> · ${b.kind==='auto'?'automatique':'manuel'} · V${b.appVersion||'?'}<br>
+          <span class="muted small">${b.counts?.cultures||0} cultures · ${b.counts?.harvests||0} récoltes · ${b.counts?.tasks||0} tâches · ${b.counts?.sales||0} ventes</span>
+          <div class="backupActions">
+            <button class="secondary" onclick="downloadStoredBackup('${b.id}')">Télécharger</button>
+            <button class="secondary" onclick="previewStoredBackup('${b.id}')">Aperçu / restaurer</button>
+          </div>
+        </div>`).join('')}
+      </details>`:''}`;
+  }catch(e){
+    host.innerHTML='<div class="muted">Historique local indisponible sur cet appareil.</div>';
+  }
+}
+async function downloadStoredBackup(id){
+  const b=await idbGet('backups',id);if(!b?.envelope)return;
+  downloadJsonObject(b.envelope,safeBackupFilename(b.createdAt));
+  localStorage.setItem(LAST_EXPORT_KEY,new Date().toISOString());
+  renderBackupPanel();
+}
+function normalizedBackup(parsed){
+  if(parsed?.format===BACKUP_FORMAT && parsed?.data) return parsed;
+  if(parsed && Array.isArray(parsed.varieties)&&Array.isArray(parsed.cultures)&&Array.isArray(parsed.blocks)){
+    return {
+      format:BACKUP_FORMAT,formatVersion:0,appVersion:Number(parsed.schemaVersion||0),
+      createdAt:'',greenhouse:{name:parsed.greenhouse?.name||'Serre principale'},
+      createdBy:{name:'Ancien export JSON'},counts:backupCounts(parsed),data:parsed
+    };
+  }
+  throw new Error('Format de sauvegarde non reconnu');
+}
+async function previewStoredBackup(id){
+  const b=await idbGet('backups',id);
+  if(b?.envelope) showBackupPreview(b.envelope);
+}
+function previewBackupFile(event){
   const file=event.target.files?.[0];
-  if(!file) return;
+  if(!file)return;
   const reader=new FileReader();
   reader.onload=()=>{
     try{
-      const parsed=JSON.parse(reader.result);
-      if(!parsed||!Array.isArray(parsed.varieties)||!Array.isArray(parsed.cultures)||!Array.isArray(parsed.blocks)) throw new Error();
-      const previous=localStorage.getItem(KEY);
-      if(previous) localStorage.setItem(UNDO_KEY,previous);
-      db=migrateData(parsed);
-      localStorage.setItem(KEY,JSON.stringify(db));
-      localStorage.setItem(SAVE_TIME_KEY,new Date().toISOString());
-      renderAll(); updateSaveIndicator();
-      afterLocalMutation();
-      alert('Sauvegarde importée avec succès.');
-    }catch(_){
-      alert('Fichier de sauvegarde invalide.');
+      const env=normalizedBackup(JSON.parse(reader.result));
+      env._sourceFileName=file.name;
+      showBackupPreview(env);
+    }catch(e){
+      alert(`Fichier de sauvegarde invalide : ${e.message||e}`);
     }finally{
       event.target.value='';
     }
   };
   reader.readAsText(file);
 }
+function showBackupPreview(env){
+  const c=env.counts||backupCounts(env.data);
+  const date=env.createdAt?formatBackupDate(env.createdAt):'date inconnue';
+  modal(`<h2>↩ Aperçu de la sauvegarde</h2>
+    <p><b>${esc(env.greenhouse?.name||'Serre principale')}</b><br>
+    <span class="muted">${esc(env._sourceFileName||'Sauvegarde locale')} · créée ${esc(date)} · V${esc(env.appVersion||'?')}</span></p>
+    <div class="backupGrid">
+      <div class="backupStat"><b>${c.cultures||0}</b><span>Cultures</span></div>
+      <div class="backupStat"><b>${c.harvests||0}</b><span>Récoltes</span></div>
+      <div class="backupStat"><b>${c.tasks||0}</b><span>Tâches</span></div>
+      <div class="backupStat"><b>${c.stock||0}</b><span>Articles de stock</span></div>
+    </div>
+    <div class="restoreWarning"><b>Attention :</b> restaurer remplace l’état actuel de Gestion Serre. Si la synchronisation est active, la restauration sera ensuite propagée à la Serre principale et donc à l’autre téléphone.</div>
+    <div class="toolbar">
+      <button onclick="restoreBackupFromPreview()">Restaurer cette sauvegarde</button>
+      <button class="secondary" onclick="closeModal()">Annuler</button>
+    </div>`);
+  window.__pendingBackupRestore=env;
+}
+async function restoreBackupFromPreview(){
+  const env=window.__pendingBackupRestore;
+  if(!env?.data)return;
+  if(cloud.linked && cloud.role && cloud.role!=='owner'){
+    alert("Par sécurité, seule la personne propriétaire de la Serre principale peut lancer une restauration complète.");
+    return;
+  }
+  if(!confirm("Confirmer la restauration complète ? Une sauvegarde de l'état actuel sera créée automatiquement juste avant.")) return;
+  try{
+    const safety=backupEnvelope();
+    await storeLocalBackup(safety,'avant-restauration');
+    const previous=localStorage.getItem(KEY);
+    if(previous) localStorage.setItem(UNDO_KEY,previous);
+    db=migrateData(env.data);
+    localStorage.setItem(KEY,JSON.stringify(db));
+    localStorage.setItem(SAVE_TIME_KEY,new Date().toISOString());
+    closeModal();
+    renderAll();
+    await queueChangesAgainstBase(false);
+    scheduleSync(200);
+    alert("Restauration effectuée. Une copie de sécurité de l'état précédent a été conservée dans l'historique local.");
+  }catch(e){
+    alert(`Restauration impossible : ${e.message||e}`);
+  }
+}
+
+// Compatibilité avec les anciens appels / anciens exports
+function exportData(){ createCompleteBackup(true); }
+function importData(event){ previewBackupFile(event); }
+
 
 // ---------- 15. INITIALISATION ----------
 async function init(){
   loadData();
 
+  const deepCode=new URLSearchParams(location.search).get('chamber');
   const saved=localStorage.getItem(NAV_KEY)||'dashboard';
   history.replaceState({view:'dashboard'},'',location.href);
   if(saved!=='dashboard'){
@@ -2693,23 +3032,30 @@ async function init(){
   if(hasSession){
     getEl('authGate').classList.add('hidden');
     updateSyncIndicator();
+
+    // Reprise immédiate : même écran, même formulaire, mêmes champs.
+    await restoreWorkspaceState(!!deepCode);
+
     if(navigator.onLine){
-      connectCloud();
+      connectCloud().then(()=>maybeAutoSnapshot());
     }else{
       cloud.team=cachedTeam();
       setSyncState('offline','Mode hors connexion');
       renderAll();
+      maybeAutoSnapshot();
     }
   }else{
     getEl('authGate').classList.remove('hidden');
     setSyncState('login','Connexion requise');
     getEl('offlineSessionHint').textContent='La première connexion nécessite Internet. Ensuite, les données restent consultables et modifiables hors ligne.';
   }
-  setTimeout(()=>checkForUpdate(false),2500);
-  const deepCode=new URLSearchParams(location.search).get('chamber');
-  if(deepCode){setTimeout(()=>{if(cloud.session)openChamberByCode(deepCode)},3200)}
-}
 
+  setTimeout(()=>checkForUpdate(false),2500);
+  if(deepCode){
+    clearWorkspaceModal();
+    setTimeout(()=>{if(cloud.session)openChamberByCode(deepCode)},3200);
+  }
+}
 init();
 </script>
 </body>
