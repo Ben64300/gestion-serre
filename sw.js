@@ -1,4 +1,4 @@
-const CACHE='gestion-serre-v16-securite-1';
+const CACHE='gestion-serre-v17-assistant-1';
 const ASSETS=['./','./index.html','./manifest.json','./README.txt','./qr-chambres.pdf'];
 
 self.addEventListener('install',event=>{
@@ -16,7 +16,7 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
 
-  // Supabase et les recherches web restent réseau uniquement.
+  // Supabase, reconnaissance vocale du navigateur et recherches web restent hors cache.
   if(url.origin!==self.location.origin){
     event.respondWith(fetch(event.request));
     return;

@@ -1,47 +1,70 @@
-GESTION SERRE — V16 SÉCURITÉ & CONFORT
+GESTION SERRE — V17 ASSISTANT TERRAIN
 
-Base : V15 Terrain & Récoltes. Toutes les fonctions V15 sont conservées.
+V17 conserve intégralement V16 :
+- Supabase partagé Benoît / Carine
+- fonctionnement offline-first
+- file de synchronisation
+- sauvegardes et restauration
+- snapshots locaux
+- reprise des brouillons après passage dans Chrome
+- cultures, chambres GrowStream, planning, stock, ventes, récoltes, QR codes et tournée.
 
-NOUVEAUTÉS V16
-- Sauvegarde complète au format JSON enrichi.
-- Sauvegarde téléchargeable sur téléphone OU ordinateur.
-- Historique local des 10 derniers snapshots dans IndexedDB.
-- Snapshot automatique au maximum une fois par 24 h lorsque l'application est ouverte.
-- Aperçu avant restauration : date, version et comptages.
-- Copie de sécurité automatique juste avant une restauration.
-- Restauration complète réservée au propriétaire lorsque la serre partagée est active.
-- Reprise du travail après passage dans Chrome :
-  * écran courant mémorisé ;
-  * position de défilement mémorisée ;
-  * fenêtre / formulaire en cours mémorisé ;
-  * champs saisis sauvegardés automatiquement.
-- Bouton « Rechercher » sur chaque variété :
-  * germination ;
-  * conseils de culture.
-- Correctif de fiabilité de la file de synchronisation pour les suppressions hors ligne.
+NOUVEAUTÉS V17
 
-SAUVEGARDE SUR ORDINATEUR
-1. Ouvrir l'adresse habituelle de Gestion Serre sur le PC.
-2. Se connecter avec le compte Benoît.
-3. Attendre l'indicateur vert « Synchronisé ».
-4. Ouvrir Plus → Sauvegardes & restauration.
-5. Cliquer « Créer une sauvegarde complète ».
-6. Conserver le fichier Gestion_Serre_sauvegarde_....json dans un dossier de sauvegarde du PC.
+1. ASSISTANT VOCAL TERRAIN
+Pendant une tournée, toucher « Écouter » puis dire par exemple :
+- « RAS »
+- « problème pucerons sur trois plants »
+- « problème feuilles jaunes créer une tâche demain »
+- « observation début de floraison »
+- « récolte 2 kilos 400 »
+- « suivant »
+- « précédente »
 
-En cas de téléphone perdu ou cassé, les données synchronisées restent dans Supabase.
-La sauvegarde sur ordinateur constitue une protection supplémentaire indépendante de l'appareil mobile.
+Le système reste push-to-talk : il n'écoute jamais en permanence.
+Les boutons tactiles restent toujours disponibles.
+La compatibilité de reconnaissance vocale dépend du navigateur Android et peut nécessiter une connexion réseau.
 
-CONTINUITÉ ANDROID
-Android peut suspendre ou fermer une PWA en arrière-plan. V16 ne peut pas empêcher Android de le faire,
-mais elle mémorise le travail en cours au fil de la saisie. Au retour dans Gestion Serre, le formulaire et ses champs
-sont restaurés automatiquement (hors lecteur QR/caméra).
+2. DICTÉE DANS LES FORMULAIRES
+Les zones de notes / observations affichent automatiquement un bouton « Dicter » lorsque le navigateur prend la reconnaissance vocale en charge.
+
+3. CONFIRMATION
+Une vibration confirme les commandes.
+Une confirmation vocale peut être activée ou désactivée dans Mode terrain.
+
+4. RECHERCHE UNIVERSELLE
+Depuis l'accueil, une seule recherche retrouve :
+- chambres (L17, S04...)
+- variétés
+- cultures
+- tâches
+- stock
+- récoltes.
+
+5. JOURNAL AUTOMATIQUE
+Le tableau de bord construit le journal du jour à partir des opérations enregistrées :
+- contrôles RAS
+- observations et problèmes
+- récoltes
+- tâches terminées
+- ventes.
+Le journal peut être copié en texte pour archivage ou transmission.
+
+6. FIABILITÉ
+Aucune nouvelle table Supabase n'est requise.
+Les nouvelles fonctions utilisent les données déjà synchronisées.
+Les commandes vocales ne remplacent jamais les contrôles manuels.
 
 MISE À JOUR GITHUB PAGES
-Remplacer / ajouter les 5 fichiers :
+Remplacer les 5 fichiers :
 - index.html
 - manifest.json
 - sw.js
 - README.txt
 - qr-chambres.pdf
 
-Aucune nouvelle configuration Supabase n'est nécessaire.
+Après publication :
+- fermer complètement Gestion Serre ;
+- la rouvrir avec Internet ;
+- autoriser le microphone au premier essai vocal.
+Carine reçoit la même V17 en fermant / rouvrant son application.

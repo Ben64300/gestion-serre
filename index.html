@@ -147,6 +147,33 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   .backupGrid,.researchActions{grid-template-columns:1fr}
 }
 
+
+/* V17 : Assistant terrain professionnel */
+.assistantCard{border:1px solid #bdd8c7;background:linear-gradient(180deg,#f5fbf7,#fff);border-radius:14px;padding:12px}
+.assistantTitle{display:flex;align-items:center;gap:8px;font-weight:900}
+.voiceBtn{font-size:18px;min-height:48px}
+.voiceBtn.listening{animation:voicePulse 1.1s infinite;outline:3px solid #cfe8d7}
+@keyframes voicePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
+.voiceTranscript{min-height:24px;margin-top:8px;padding:8px;border-radius:9px;background:#f3f5f4;font-size:13px}
+.voiceCommands{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.voiceCommands span{font-size:11px;border:1px solid var(--border);border-radius:999px;padding:4px 7px;background:#fff}
+.searchBox{position:relative}
+.searchResults{margin-top:8px}
+.searchHit{border-top:1px solid var(--border);padding:9px 0;cursor:pointer}
+.searchHit:first-child{border-top:0}
+.searchHit b{display:block}
+.searchType{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:900;color:#587065}
+.journalSummary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:8px 0}
+.journalSummary div{border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;background:#fafcfb}
+.journalSummary b{font-size:19px;display:block}
+.journalEntry{border-top:1px solid var(--border);padding:8px 0;font-size:13px}
+.journalEntry:first-child{border-top:0}
+.voiceInline{margin-top:5px;width:auto}
+.proBadge{display:inline-block;font-size:10px;font-weight:900;padding:3px 6px;border-radius:999px;background:#173e2b;color:white;vertical-align:middle}
+@media(max-width:520px){
+  .journalSummary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 </style>
 </head>
 <body>
@@ -167,6 +194,13 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <div class="row"><div><h2 id="todayTitle">Aujourd’hui dans la serre</h2><div id="todayWho" class="who"></div></div><button class="secondary fit" onclick="startTour()">🚶 Tournée</button></div>
     <div id="todayFocus"></div>
   </div>
+  <div class="card assistantCard">
+    <div class="assistantTitle">🔎 Recherche universelle <span class="proBadge">PRO</span></div>
+    <p class="small muted">Retrouve immédiatement une chambre, une variété, une culture, une tâche, un stock ou une récolte.</p>
+    <div class="searchBox"><input id="globalSearch" placeholder="ex. L17, Pak choï, Copper Currant, engrais…" oninput="renderUniversalSearch()"></div>
+    <div id="globalSearchResults" class="searchResults"></div>
+  </div>
+
   <div class="grid" id="metrics"></div>
   <div class="card">
     <h3>Actions rapides</h3>
@@ -179,12 +213,25 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
   <div class="card"><h3>Récoltes</h3><div id="harvestSummary"></div></div>
   <div class="card"><h3>Occupation des GrowStream</h3><div id="occupancySummary"></div></div>
+  <div class="card">
+    <div class="row"><h3>📒 Journal automatique du jour</h3><button class="secondary fit" onclick="copyDailyJournal()">Copier</button></div>
+    <div id="dailyJournal"></div>
+  </div>
   <div class="card"><h3>Prochaines échéances</h3><div id="upcoming"></div></div>
   <div class="card"><h3>Alertes stock</h3><div id="alerts"></div></div>
 </section>
 
 <section id="field">
   <div class="row"><h2>Mode terrain</h2><button class="fit" onclick="startTour()">🚶 Démarrer une tournée</button></div>
+  <div class="card assistantCard">
+    <div class="assistantTitle">🎙️ Assistant vocal terrain <span class="proBadge">PRO</span></div>
+    <p class="small muted">Pendant une tournée : « RAS », « problème pucerons », « observation feuilles jaunes », « récolte 2 kilos 400 », « suivant » ou « précédente ».</p>
+    <div class="toolbar">
+      <button id="fieldVoiceBtn" class="voiceBtn" onclick="startVoiceAssistant()">🎙️ Écouter</button>
+      <label class="small" style="display:flex;align-items:center;gap:7px"><input id="voiceFeedbackToggle" type="checkbox" style="width:auto" onchange="setVoiceFeedback(this.checked)"> Confirmation vocale</label>
+    </div>
+    <div id="fieldVoiceStatus" class="voiceTranscript">Assistant prêt. La voix accélère le travail, les boutons restent toujours disponibles.</div>
+  </div>
   <div class="card">
     <h3>Accès direct</h3>
     <div class="fieldActions">
@@ -301,7 +348,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V16 installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V17 installée.</div>
   </div>
 
   <div class="card">
@@ -319,8 +366,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V16 Sécurité & Confort</h3>
-    <p class="muted">V16 renforce la sécurité des données et la continuité de travail : sauvegardes complètes, restauration avec aperçu, snapshots locaux, reprise automatique des formulaires et retour à l’écran exact après un passage dans Chrome.</p>
+    <h3>À propos de cette V17 Assistant Terrain</h3>
+    <p class="muted">V17 transforme le mode terrain en véritable assistant professionnel : commandes vocales, dictée des observations, recherche universelle et journal automatique de la serre, tout en conservant la sécurité et les sauvegardes de la V16.</p>
   </div>
 </section>
 </main>
@@ -360,7 +407,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V16 SÉCURITÉ & CONFORT
+   GESTION SERRE — V17 ASSISTANT TERRAIN
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -376,7 +423,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -399,6 +446,13 @@ const BACKUP_FORMAT = 'gestion-serre-backup';
 const BACKUP_FORMAT_VERSION = 1;
 const AUTO_SNAPSHOT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const MAX_LOCAL_BACKUPS = 10;
+
+const VOICE_FEEDBACK_KEY = 'gestion_serre_v17_voice_feedback';
+const VOICE_LANG = 'fr-FR';
+let activeRecognition = null;
+let voiceTarget = null;
+let voiceListening = false;
+
 let workspaceSaveTimer = null;
 
 
@@ -741,6 +795,7 @@ window.addEventListener('popstate',event=>{
 function modal(html){
   getEl('sheet').innerHTML=html;
   getEl('modal').classList.add('open');
+  enhanceVoiceTextareas();
   scheduleWorkspaceSave();
 }
 function closeModal(){
@@ -1013,6 +1068,9 @@ function renderAll(){
   renderSyncPanel();
   renderActivity();
   renderBackupPanel();
+  renderUniversalSearch();
+  renderDailyJournal();
+  updateVoiceUI();
   updateSaveIndicator();
   updateSyncIndicator();
 }
@@ -1562,6 +1620,342 @@ function releaseOneChamber(cultureId,n){
 }
 
 
+
+// ---------- 9B. ASSISTANT TERRAIN / RECHERCHE / JOURNAL V17 ----------
+function SpeechRecognitionCtor(){
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+function voiceSupported(){
+  return !!SpeechRecognitionCtor();
+}
+function voiceFeedbackEnabled(){
+  const v=localStorage.getItem(VOICE_FEEDBACK_KEY);
+  return v===null ? false : v==='1';
+}
+function setVoiceFeedback(enabled){
+  localStorage.setItem(VOICE_FEEDBACK_KEY,enabled?'1':'0');
+  updateVoiceUI();
+}
+function voiceAcknowledge(message){
+  try{ navigator.vibrate?.(45); }catch(_){}
+  if(voiceFeedbackEnabled() && 'speechSynthesis' in window){
+    try{
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(message);
+      u.lang=VOICE_LANG; u.rate=1.05; u.pitch=1;
+      speechSynthesis.speak(u);
+    }catch(_){}
+  }
+}
+function setVoiceStatus(message){
+  const field=getEl('fieldVoiceStatus');
+  if(field) field.textContent=message;
+  const tour=getEl('tourVoiceStatus');
+  if(tour) tour.textContent=message;
+}
+function updateVoiceUI(){
+  const toggle=getEl('voiceFeedbackToggle');
+  if(toggle) toggle.checked=voiceFeedbackEnabled();
+  const buttons=[getEl('fieldVoiceBtn'),getEl('tourVoiceBtn')].filter(Boolean);
+  buttons.forEach(btn=>{
+    btn.disabled=!voiceSupported();
+    btn.classList.toggle('listening',voiceListening);
+    btn.textContent=voiceListening?'🔴 J’écoute…':'🎙️ Écouter';
+  });
+  if(!voiceSupported()) setVoiceStatus("La reconnaissance vocale n'est pas disponible dans ce navigateur. Les boutons tactiles restent entièrement fonctionnels.");
+}
+function normalizeVoiceText(s){
+  return String(s||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[’']/g,' ').replace(/[.,;:!?]/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+function tomorrowISO(){
+  const d=new Date(); d.setDate(d.getDate()+1);
+  return d.toISOString().slice(0,10);
+}
+function parseVoiceHarvest(text){
+  const raw=normalizeVoiceText(text);
+  let unit='kg', qty=0;
+  let m=raw.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilo|kilos|kilogramme|kilogrammes)\b/);
+  if(m){
+    qty=Number(m[1].replace(',','.'));
+    const after=raw.slice((m.index||0)+m[0].length).trim();
+    const gm=after.match(/^(\d{1,3})\b/);
+    if(gm && !String(m[1]).includes(',') && !String(m[1]).includes('.')) qty+=Number(gm[1])/1000;
+    return {qty,unit:'kg'};
+  }
+  m=raw.match(/(\d+(?:[.,]\d+)?)\s*(g|gramme|grammes)\b/);
+  if(m) return {qty:Number(m[1].replace(',','.')),unit:'g'};
+  m=raw.match(/(\d+(?:[.,]\d+)?)\s*(piece|pieces|botte|bottes|barquette|barquettes)\b/);
+  if(m){
+    const word=m[2];
+    unit=word.startsWith('piece')?'pièce':word.startsWith('botte')?'botte':'barquette';
+    return {qty:Number(m[1].replace(',','.')),unit};
+  }
+  m=raw.match(/recolte\s+(\d+(?:[.,]\d+)?)/);
+  if(m) return {qty:Number(m[1].replace(',','.')),unit:'kg'};
+  return {qty:0,unit:'kg'};
+}
+function startRecognition({onResult,onError,prompt='Parle maintenant…'}={}){
+  const Ctor=SpeechRecognitionCtor();
+  if(!Ctor){
+    alert("La reconnaissance vocale n'est pas disponible sur ce navigateur. Essaie Chrome Android à jour ou utilise les boutons.");
+    return;
+  }
+  try{ activeRecognition?.abort?.(); }catch(_){}
+  const rec=new Ctor();
+  activeRecognition=rec;
+  rec.lang=VOICE_LANG;
+  rec.continuous=false;
+  rec.interimResults=false;
+  rec.maxAlternatives=1;
+  voiceListening=true;
+  setVoiceStatus(prompt);
+  updateVoiceUI();
+
+  rec.onresult=e=>{
+    const transcript=e.results?.[0]?.[0]?.transcript||'';
+    setVoiceStatus(`Entendu : « ${transcript} »`);
+    onResult?.(transcript);
+  };
+  rec.onerror=e=>{
+    const msg=e.error==='not-allowed'?'Autorisation micro refusée. Active le micro pour Gestion Serre.':
+      e.error==='no-speech'?'Je n’ai rien entendu. Tu peux réessayer.':
+      `Reconnaissance vocale indisponible (${e.error||'erreur'}).`;
+    setVoiceStatus(msg);
+    onError?.(e);
+  };
+  rec.onend=()=>{
+    voiceListening=false; activeRecognition=null; updateVoiceUI();
+  };
+  try{rec.start()}catch(e){voiceListening=false;activeRecognition=null;updateVoiceUI();setVoiceStatus('Impossible de démarrer le micro.')}
+}
+function startVoiceAssistant(){
+  if(!tourState?.chambers?.length || tourState.index>=tourState.chambers.length){
+    setVoiceStatus("Lance d'abord une tournée : les commandes vocales agissent sur la chambre affichée.");
+    voiceAcknowledge("Lance une tournée");
+    return;
+  }
+  startRecognition({
+    prompt:`J’écoute pour ${chamberCode(tourState.blockId,tourState.chambers[tourState.index])}…`,
+    onResult:handleTourVoiceCommand
+  });
+}
+function handleTourVoiceCommand(transcript){
+  const t=normalizeVoiceText(transcript);
+  if(!t) return;
+
+  if(/^(ras|r a s|rien a signaler|rien signaler)$/.test(t) || t.includes('rien a signaler')){
+    voiceAcknowledge('RAS enregistré');
+    tourRAS(); return;
+  }
+  if(t==='suivant'||t==='suivante'||t.includes('chambre suivante')){
+    voiceAcknowledge('Suivante'); tourNext(); return;
+  }
+  if(t==='precedent'||t==='precedente'||t.includes('chambre precedente')){
+    voiceAcknowledge('Précédente'); tourBack(); return;
+  }
+  if(t.startsWith('probleme')){
+    let note=transcript.replace(/^\s*probl[eè]me\s*:?\s*/i,'').trim();
+    if(!note){
+      openTourObservation('Problème');
+      setTimeout(()=>dictateInto('tourNote'),180);
+      return;
+    }
+    saveTourVoiceObservation('Problème',note,t);
+    return;
+  }
+  if(t.startsWith('observation')||t.startsWith('note')){
+    let note=transcript.replace(/^\s*(observation|note)\s*:?\s*/i,'').trim();
+    if(!note){
+      openTourObservation('Observation');
+      setTimeout(()=>dictateInto('tourNote'),180);
+      return;
+    }
+    saveTourVoiceObservation('Observation',note,t);
+    return;
+  }
+  if(t.startsWith('recolte')||t.includes(' recolte ')){
+    openHarvestFromTourVoice(transcript); return;
+  }
+  if(t.includes('ouvrir recolte')){
+    openHarvestFromTour(); return;
+  }
+  setVoiceStatus(`Commande non reconnue : « ${transcript} ». Essaie RAS, problème…, observation…, récolte…, suivant ou précédente.`);
+  voiceAcknowledge('Commande non reconnue');
+}
+function saveTourVoiceObservation(type,note,normalizedFull=''){
+  const n=tourState.chambers[tourState.index];
+  const createTask=normalizedFull.includes('creer une tache')||normalizedFull.includes('cree une tache')||normalizedFull.includes('tache demain')||normalizedFull.includes('tache');
+  if(createTask){
+    const occ=chamberOccupants(tourState.blockId,n),first=occ[0]?.culture;
+    const date=normalizedFull.includes('demain')?tomorrowISO():todayISO();
+    db.tasks.push({
+      id:uid('t'),title:`${type} ${chamberCode(tourState.blockId,n)} : ${note}`,date,
+      varietyId:first?.varietyId||'',blockId:tourState.blockId,done:false,status:'todo',
+      assignee:cloud.user?.id||'all',_localUpdatedBy:cloud.user?.id||'',_localUpdatedAt:new Date().toISOString()
+    });
+  }
+  saveInspection(type,note,createTask);
+  if(type==='Problème') tourState.problems++; else tourState.notes++;
+  persist({message:`${type} enregistrée par la voix`,undo:false,render:false});
+  voiceAcknowledge(type==='Problème'?'Problème enregistré':'Observation enregistrée');
+  tourNext();
+}
+function openHarvestFromTourVoice(transcript){
+  const n=tourState.chambers[tourState.index];
+  const occ=chamberOccupants(tourState.blockId,n).filter(x=>x.culture.status==='Active');
+  if(!occ.length){setVoiceStatus('Aucune culture active dans cette chambre.');voiceAcknowledge('Aucune culture active');return}
+  const parsed=parseVoiceHarvest(transcript);
+  openHarvest(occ[0].culture.id,n,true);
+  setTimeout(()=>{
+    if(parsed.qty>0 && getEl('hqty')) getEl('hqty').value=parsed.qty;
+    if(parsed.unit && getEl('hunit')) getEl('hunit').value=parsed.unit;
+    if(occ.length>1) setVoiceStatus('Plusieurs cultures sont présentes : vérifie la culture avant d’enregistrer.');
+    else if(parsed.qty>0) setVoiceStatus(`Récolte préparée : ${parsed.qty.toLocaleString('fr-FR')} ${parsed.unit}. Vérifie puis enregistre.`);
+    else setVoiceStatus('Récolte ouverte. Dicte ou saisis la quantité.');
+  },80);
+}
+function enhanceVoiceTextareas(){
+  if(!voiceSupported()) return;
+  const sheet=getEl('sheet');if(!sheet)return;
+  [...sheet.querySelectorAll('textarea')].forEach((ta,i)=>{
+    if(ta.dataset.voiceEnhanced==='1')return;
+    ta.dataset.voiceEnhanced='1';
+    if(!ta.id) ta.id=`voiceTextarea_${Date.now()}_${i}`;
+    const btn=document.createElement('button');
+    btn.type='button';btn.className='secondary voiceInline';btn.textContent='🎙️ Dicter';
+    btn.onclick=()=>dictateInto(ta.id);
+    ta.insertAdjacentElement('afterend',btn);
+  });
+}
+function dictateInto(id){
+  const el=getEl(id);if(!el)return;
+  startRecognition({
+    prompt:'Dicte ton observation…',
+    onResult:transcript=>{
+      const current=el.value.trim();
+      el.value=current?`${current} ${transcript}`:transcript;
+      el.dispatchEvent(new Event('input',{bubbles:true}));
+      voiceAcknowledge('Dictée ajoutée');
+    }
+  });
+}
+
+// RECHERCHE UNIVERSELLE
+function universalHits(query){
+  const q=normalizeVoiceText(query);
+  if(q.length<2)return [];
+  const hits=[];
+  const add=(type,title,subtitle,action,score=1)=>hits.push({type,title,subtitle,action,score});
+
+  const chamber=parseChamberCode(q.toUpperCase());
+  if(chamber) add('Chambre',chamberCode(chamber.blockId,chamber.n),blockName(chamber.blockId),`openChamber('${chamber.blockId}',${chamber.n})`,100);
+
+  db.varieties.forEach(v=>{
+    const hay=normalizeVoiceText(`${v.name} ${v.species} ${v.module}`);
+    if(hay.includes(q)) add('Variété',v.name,`${v.species||''} · ${v.module||''}`,`openEditVariety('${v.id}')`,50);
+  });
+  db.cultures.forEach(c=>{
+    const codes=allocationsOf(c).map(a=>chamberCode(c.blockId,a.chamberNumber)).join(' ');
+    const hay=normalizeVoiceText(`${varietyName(c.varietyId)} ${blockName(c.blockId)} ${codes} ${c.status} ${c.notes||''}`);
+    if(hay.includes(q)) add('Culture',varietyName(c.varietyId),`${blockName(c.blockId)} · ${codes||'sans chambre'} · ${c.status}`,`show('cultures');setTimeout(()=>openEditCulture('${c.id}'),50)`,45);
+  });
+  db.tasks.forEach(t=>{
+    const hay=normalizeVoiceText(`${t.title} ${varietyName(t.varietyId)} ${blockName(t.blockId)} ${memberName(t.assignee)}`);
+    if(hay.includes(q)) add('Tâche',t.title,`${fmt(t.date)} · ${taskStatusLabel(t.status)} · ${memberName(t.assignee)}`,`show('planning')`,35);
+  });
+  db.stock.forEach(s=>{
+    const hay=normalizeVoiceText(`${s.name} ${s.category} ${s.supplier} ${s.lot}`);
+    if(hay.includes(q)) add('Stock',s.name,`${Number(s.qty||0).toLocaleString('fr-FR')} ${s.unit||''} · ${s.category||''}`,`show('stock');setTimeout(()=>openEditStock('${s.id}'),50)`,30);
+  });
+  db.harvests.forEach(h=>{
+    const hay=normalizeVoiceText(`${varietyName(h.varietyId)} ${blockName(h.blockId)} ${h.chamberNumber?chamberCode(h.blockId,h.chamberNumber):''} ${h.notes||''}`);
+    if(hay.includes(q)) add('Récolte',`${varietyName(h.varietyId)} · ${Number(h.qty||0).toLocaleString('fr-FR')} ${h.unit}`,`${fmt(h.date)} · ${h.chamberNumber?chamberCode(h.blockId,h.chamberNumber):blockName(h.blockId)}`,`show('field')`,20);
+  });
+  return hits.sort((a,b)=>b.score-a.score||byText(a.title,b.title)).slice(0,12);
+}
+function renderUniversalSearch(){
+  const host=getEl('globalSearchResults'),input=getEl('globalSearch');
+  if(!host||!input)return;
+  const q=input.value.trim();
+  if(q.length<2){host.innerHTML='';return}
+  const hits=universalHits(q);
+  host.innerHTML=hits.length?hits.map(h=>`<div class="searchHit" onclick="${h.action}">
+    <span class="searchType">${esc(h.type)}</span><b>${esc(h.title)}</b><span class="small muted">${esc(h.subtitle||'')}</span>
+  </div>`).join(''):'<div class="empty">Aucun résultat.</div>';
+}
+
+// JOURNAL AUTOMATIQUE
+function sameDay(value,date=todayISO()){
+  if(!value)return false;
+  return String(value).slice(0,10)===date;
+}
+function dailyJournalData(date=todayISO()){
+  const events=[];
+  const inspections=db.inspections.filter(i=>i.date===date);
+  const harvests=db.harvests.filter(h=>h.date===date);
+  const tasks=db.tasks.filter(t=>t.status==='done' && sameDay(t._cloudUpdatedAt||t._localUpdatedAt,date));
+  const sales=db.sales.filter(s=>s.date===date);
+
+  inspections.forEach(i=>events.push({
+    time:i.createdAt||`${i.date}T12:00:00`,icon:i.type==='Problème'?'⚠️':i.type==='Observation'?'📝':'✓',
+    who:memberName(i.userId),text:`${chamberCode(i.blockId,i.chamberNumber)} · ${i.type}${i.note?` : ${i.note}`:''}`
+  }));
+  harvests.forEach(h=>events.push({
+    time:h.createdAt||`${h.date}T12:00:00`,icon:'⚖️',who:memberName(h.createdBy),
+    text:`Récolte ${varietyName(h.varietyId)} : ${Number(h.qty||0).toLocaleString('fr-FR')} ${h.unit}${h.chamberNumber?` · ${chamberCode(h.blockId,h.chamberNumber)}`:''}`
+  }));
+  tasks.forEach(t=>events.push({
+    time:t._cloudUpdatedAt||t._localUpdatedAt||`${date}T12:00:00`,icon:'✅',who:memberName(t._cloudUpdatedBy||t._localUpdatedBy),
+    text:`Tâche terminée : ${t.title}`
+  }));
+  sales.forEach(s=>events.push({
+    time:s.createdAt||`${s.date}T12:00:00`,icon:'💶',who:'',text:`Vente : ${s.label||varietyName(s.varietyId)||'vente'} · ${Number(s.amount||0).toLocaleString('fr-FR')} €`
+  }));
+
+  events.sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+  return {date,events,inspections,harvests,tasks,sales};
+}
+function renderDailyJournal(){
+  const host=getEl('dailyJournal');if(!host)return;
+  const j=dailyJournalData();
+  const problems=j.inspections.filter(i=>i.type==='Problème').length;
+  const totalHarvestKg=j.harvests.filter(h=>h.unit==='kg').reduce((s,h)=>s+Number(h.qty||0),0);
+  host.innerHTML=`<div class="journalSummary">
+    <div><b>${j.inspections.length}</b><span class="small">contrôles</span></div>
+    <div><b>${problems}</b><span class="small">problèmes</span></div>
+    <div><b>${totalHarvestKg.toLocaleString('fr-FR')}</b><span class="small">kg récoltés</span></div>
+    <div><b>${j.tasks.length}</b><span class="small">tâches finies</span></div>
+  </div>
+  ${j.events.length?j.events.slice(-12).reverse().map(e=>`<div class="journalEntry">${e.icon} ${e.who?`<b>${esc(e.who)}</b> · `:''}${esc(e.text)}<br><span class="muted">${new Date(e.time).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span></div>`).join(''):'<div class="empty">Le journal se construira automatiquement au fil des actions réalisées aujourd’hui.</div>'}`;
+}
+function dailyJournalText(){
+  const j=dailyJournalData();
+  const d=new Date(`${j.date}T12:00:00`).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const lines=[`Gestion Serre — Journal du ${d}`,''];
+  if(!j.events.length) lines.push('Aucune opération enregistrée aujourd’hui.');
+  else j.events.forEach(e=>{
+    const time=new Date(e.time).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    lines.push(`${time} — ${e.who?e.who+' — ':''}${e.text}`);
+  });
+  const problems=j.inspections.filter(i=>i.type==='Problème').length;
+  const kg=j.harvests.filter(h=>h.unit==='kg').reduce((s,h)=>s+Number(h.qty||0),0);
+  lines.push('',`Résumé : ${j.inspections.length} contrôle(s), ${problems} problème(s), ${kg.toLocaleString('fr-FR')} kg récolté(s), ${j.tasks.length} tâche(s) terminée(s).`);
+  return lines.join('\n');
+}
+async function copyDailyJournal(){
+  const text=dailyJournalText();
+  try{
+    await navigator.clipboard.writeText(text);
+    alert('Journal du jour copié. Tu peux le coller dans un e-mail, un document ou un message.');
+  }catch(_){
+    modal(`<h2>📒 Journal du jour</h2><textarea id="journalCopy" style="min-height:280px">${esc(text)}</textarea><button onclick="getEl('journalCopy').select();document.execCommand('copy');alert('Copié')">Copier</button><button class="secondary" onclick="closeModal()">Fermer</button>`);
+  }
+}
+
+
 // ---------- 10. MODE TERRAIN / RÉCOLTES / QR ----------
 let tourState={blockId:'',mode:'occupied',chambers:[],index:0,ras:0,notes:0,problems:0};
 let qrStream=null,qrTimer=null;
@@ -1609,7 +2003,8 @@ function saveHarvest(){
   db.harvests.push({
     id:uid('harv'),date:getEl('hdate').value,cultureId:c.id,varietyId:c.varietyId,blockId:c.blockId,
     chamberNumber:Number(getEl('hchamber').value||0)||'',qty,unit:getEl('hunit').value,
-    quality:getEl('hquality').value,notes:getEl('hnotes').value.trim(),createdBy:cloud.user?.id||''
+    quality:getEl('hquality').value,notes:getEl('hnotes').value.trim(),createdBy:cloud.user?.id||'',
+    createdAt:new Date().toISOString()
   });
   closeModal();persist({message:'Récolte enregistrée'});
   if(harvestReturnToTour){harvestReturnToTour=false;setTimeout(()=>showTourStep(),80)}
@@ -1633,7 +2028,7 @@ function renderInspections(){
   el.innerHTML=arr.length?arr.map(i=>`<div class="item"><b>${esc(chamberCode(i.blockId,i.chamberNumber))}</b> <span class="obsTag ${inspectionTypeClass(i.type)}">${esc(i.type)}</span><br>
     <span class="small muted">${fmt(i.date)} · ${esc(memberName(i.userId))}</span>${i.note?`<br>${esc(i.note)}`:''}</div>`).join(''):'<div class="empty">Aucune observation de tournée.</div>';
 }
-function renderField(){renderHarvests();renderInspections()}
+function renderField(){renderHarvests();renderInspections();updateVoiceUI()}
 
 function openChamberLookup(){
   modal(`<h2>Ouvrir une chambre</h2><label>Code</label><input id="lookupCode" inputmode="text" autocapitalize="characters" placeholder="ex. L17 ou S04">
@@ -1692,7 +2087,8 @@ function startTour(){
   const opts=db.blocks.filter(b=>Number(b.chambers||0)>0).map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
   modal(`<h2>🚶 Tournée de serre</h2><label>Bloc</label><select id="tourBlock">${opts}</select>
     <label>Parcours</label><select id="tourMode"><option value="occupied">Chambres occupées / réservées</option><option value="all">Toutes les chambres</option></select>
-    <p class="small muted">Un appui sur « RAS » enregistre le contrôle puis passe directement à la chambre suivante.</p>
+    <p class="small muted">Un appui sur « RAS » enregistre le contrôle puis passe directement à la chambre suivante. En V17 tu peux aussi piloter la tournée à la voix.</p>
+    <div class="voiceCommands"><span>« RAS »</span><span>« problème pucerons »</span><span>« observation feuilles jaunes »</span><span>« récolte 2 kilos 400 »</span><span>« suivant »</span></div>
     <button onclick="beginTour()">Commencer</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
 function beginTour(){
@@ -1711,7 +2107,12 @@ function showTourStep(){
     <div class="chamberSummary"><div><b>${s.used}</b><span class="small">plantés</span></div><div><b>${s.reserved}</b><span class="small">réservés</span></div><div><b>${s.free}</b><span class="small">libres</span></div></div>
     <div class="small">${occ.map(x=>`${esc(varietyName(x.culture.varietyId))} · ${x.allocation.qty}`).join('<br>')||'<span class="muted">Chambre libre</span>'}</div>
     <div class="bigActions"><button onclick="tourRAS()">✓ RAS</button><button class="secondary" onclick="openTourObservation('Observation')">📝 Observation</button><button class="danger" onclick="openTourObservation('Problème')">⚠ Problème</button><button class="secondary" onclick="openHarvestFromTour()">⚖ Récolte</button></div>
+    <div class="assistantCard" style="margin-top:10px">
+      <button id="tourVoiceBtn" class="voiceBtn" style="width:100%" onclick="startVoiceAssistant()">🎙️ Écouter</button>
+      <div id="tourVoiceStatus" class="voiceTranscript">Dis « RAS », « problème… », « observation… », « récolte… », « suivant » ou « précédente ».</div>
+    </div>
     <div class="toolbar"><button class="secondary" onclick="tourBack()" ${tourState.index===0?'disabled':''}>← Précédente</button><button class="secondary" onclick="tourNext()">Passer →</button><button class="secondary" onclick="closeModal()">Quitter</button></div>`);
+  updateVoiceUI();
 }
 function saveInspection(type,note='',taskCreated=false){
   const n=tourState.chambers[tourState.index];
