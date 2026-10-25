@@ -1,4 +1,4 @@
-const CACHE='gestion-serre-v17-assistant-1';
+const CACHE='gestion-serre-v18-recoltes-1';
 const ASSETS=['./','./index.html','./manifest.json','./README.txt','./qr-chambres.pdf'];
 
 self.addEventListener('install',event=>{

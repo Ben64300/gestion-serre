@@ -174,6 +174,30 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   .journalSummary{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
+
+/* V18 : Récoltes & rendements */
+.harvestHero{background:linear-gradient(135deg,#edf7f0,#fff);border:1px solid #c8e0d0}
+.harvestKpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.harvestKpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
+.harvestKpi b{display:block;font-size:21px;line-height:1.15}.harvestKpi span{font-size:11px;color:var(--muted)}
+.harvestTabs{display:flex;gap:6px;overflow:auto;padding:2px 0 7px}
+.harvestTabs button{white-space:nowrap;background:#e7eee9;color:var(--green);padding:8px 10px}
+.harvestTabs button.active{background:var(--green);color:#fff}
+.harvestClass{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;font-weight:800}
+.harvestClass.sellable{background:#dff1e5;color:#174b31}.harvestClass.downgraded{background:#fff1bf;color:#614900}.harvestClass.loss{background:#f6dddd;color:#7c2626}
+.harvestChart{margin-top:10px}.harvestChartRow{display:grid;grid-template-columns:minmax(100px,1.2fr) 3fr auto;gap:8px;align-items:center;margin:7px 0;font-size:12px}
+.harvestBarTrack{height:12px;background:#edf1ee;border-radius:999px;overflow:hidden}.harvestBarFill{height:100%;background:var(--green2);border-radius:999px}
+.harvestLineWrap{overflow:hidden;margin-top:8px}.harvestLineWrap svg{width:100%;height:180px;display:block}.harvestLineGrid{stroke:#dfe7e2;stroke-width:1}.harvestLine{fill:none;stroke:var(--green2);stroke-width:3}.harvestDot{fill:var(--green)}
+.harvestGroup{border-top:1px solid var(--border);padding:10px 0}.harvestGroup:first-child{border-top:0}
+.harvestGroupTitle{display:flex;gap:8px;justify-content:space-between;align-items:flex-start}.harvestGroupTitle>div{min-width:0}
+.harvestCompact{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.harvestMini{font-size:11px;border:1px solid var(--border);border-radius:999px;padding:3px 7px;background:#fafcfb}
+.harvestFilterActions{display:flex;gap:7px;align-items:end;flex-wrap:wrap}.harvestFilterActions button{min-width:110px}
+.harvestNoMix{background:#f7f9f7;border:1px solid var(--border);border-radius:10px;padding:8px;font-size:11px;color:var(--muted);margin-top:8px}
+.harvestProd{background:#f5f9f6;border:1px solid #d5e5da;border-radius:10px;padding:8px;margin:8px 0;font-size:12px}
+.harvestProd b{font-size:16px}
+@media(max-width:650px){.harvestKpis{grid-template-columns:repeat(2,minmax(0,1fr))}.harvestChartRow{grid-template-columns:100px 1fr auto}}
+
 </style>
 </head>
 <body>
@@ -211,7 +235,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
       <button class="secondary" onclick="openReservation()">🟨 Réserver une chambre</button>
     </div>
   </div>
-  <div class="card"><h3>Récoltes</h3><div id="harvestSummary"></div></div>
+  <div class="card"><div class="row"><h3>Récoltes</h3><button class="secondary fit" onclick="show('harvests')">Analyser</button></div><div id="harvestSummary"></div></div>
   <div class="card"><h3>Occupation des GrowStream</h3><div id="occupancySummary"></div></div>
   <div class="card">
     <div class="row"><h3>📒 Journal automatique du jour</h3><button class="secondary fit" onclick="copyDailyJournal()">Copier</button></div>
@@ -244,6 +268,45 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
   <div class="card"><h3>Récoltes récentes</h3><div id="harvestList"></div></div>
   <div class="card"><h3>Dernières observations de tournée</h3><div id="inspectionList"></div></div>
+</section>
+
+<section id="harvests">
+  <div class="row"><h2>⚖️ Récoltes & rendements</h2><button class="fit" onclick="openHarvest()">＋ Récolte</button></div>
+  <div class="card harvestHero">
+    <div class="row"><div><h3 id="harvestPeriodTitle">Production</h3><div class="small muted">Les unités restent séparées : les kg ne sont jamais additionnés aux bottes ou aux pièces.</div></div><div class="fit toolbar"><button class="secondary" onclick="exportHarvestCSV()">CSV</button><button class="secondary" onclick="resetHarvestFilters()">Réinitialiser</button></div></div>
+    <div id="harvestKpis" class="harvestKpis"></div>
+  </div>
+
+  <div class="card">
+    <h3>Filtres</h3>
+    <div class="filterGrid">
+      <div><label>Période</label><select id="harvestPeriod" onchange="onHarvestPeriodChange()">
+        <option value="month">Ce mois</option><option value="today">Aujourd’hui</option><option value="7">7 derniers jours</option><option value="prevmonth">Mois précédent</option><option value="year">Cette année</option><option value="all">Toutes les dates</option><option value="custom">Personnalisée</option>
+      </select></div>
+      <div><label>Variété</label><select id="harvestVarietyFilter" onchange="renderHarvestAnalytics()"><option value="all">Toutes les variétés</option></select></div>
+      <div><label>GrowStream</label><select id="harvestBlockFilter" onchange="onHarvestBlockFilterChange()"><option value="all">Tous</option></select></div>
+      <div><label>Chambre</label><select id="harvestChamberFilter" onchange="renderHarvestAnalytics()"><option value="all">Toutes</option></select></div>
+      <div><label>Classement</label><select id="harvestClassFilter" onchange="renderHarvestAnalytics()"><option value="all">Tous</option><option value="commercialisable">Commercialisable</option><option value="declasse">Déclassé</option><option value="perte">Perte</option></select></div>
+      <div><label>Récolté par</label><select id="harvestUserFilter" onchange="renderHarvestAnalytics()"><option value="all">Tous</option></select></div>
+      <div id="harvestFromWrap" style="display:none"><label>Du</label><input id="harvestFrom" type="date" onchange="renderHarvestAnalytics()"></div>
+      <div id="harvestToWrap" style="display:none"><label>Au</label><input id="harvestTo" type="date" onchange="renderHarvestAnalytics()"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="harvestTabs">
+      <button id="harvestTab_timeline" class="active" onclick="setHarvestView('timeline')">Chronologie</button>
+      <button id="harvestTab_variety" onclick="setHarvestView('variety')">Par variété</button>
+      <button id="harvestTab_chamber" onclick="setHarvestView('chamber')">Par chambre</button>
+      <button id="harvestTab_month" onclick="setHarvestView('month')">Par mois</button>
+    </div>
+    <div id="harvestAnalyticsBody"></div>
+  </div>
+
+  <div class="card">
+    <h3>📈 Visualisations</h3>
+    <div id="harvestCharts"></div>
+  </div>
 </section>
 
 <section id="cultures">
@@ -348,7 +411,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V17 installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V18 installée.</div>
   </div>
 
   <div class="card">
@@ -366,8 +429,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V17 Assistant Terrain</h3>
-    <p class="muted">V17 transforme le mode terrain en véritable assistant professionnel : commandes vocales, dictée des observations, recherche universelle et journal automatique de la serre, tout en conservant la sécurité et les sauvegardes de la V16.</p>
+    <h3>À propos de cette V18 Récoltes & Rendements</h3>
+    <p class="muted">V18 ajoute un véritable tableau de bord professionnel des récoltes : filtres, analyses par variété, chambre et mois, rendement par plant, qualité commerciale et édition des saisies, tout en conservant l’assistant terrain V17.</p>
   </div>
 </section>
 </main>
@@ -375,6 +438,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 <nav>
   <button class="active" onclick="show('dashboard',this)"><span>⌂</span>Accueil</button>
   <button onclick="show('field',this)"><span>🚶</span>Terrain</button>
+  <button onclick="show('harvests',this)"><span>⚖️</span>Récoltes</button>
   <button onclick="show('cultures',this)"><span>🌱</span>Cultures</button>
   <button onclick="show('planning',this)"><span>📅</span>Planning</button>
   <button onclick="show('stock',this)"><span>📦</span>Stock</button>
@@ -407,7 +471,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V17 ASSISTANT TERRAIN
+   GESTION SERRE — V18 RÉCOLTES & RENDEMENTS
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -423,7 +487,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -692,6 +756,21 @@ function migrateData(raw){
   x.costs = Array.isArray(x.costs) ? x.costs : [];
   x.chamberHistory = Array.isArray(x.chamberHistory) ? x.chamberHistory : [];
   x.harvests = Array.isArray(x.harvests) ? x.harvests : [];
+  x.harvests = x.harvests.map(h=>{
+    const hadClassification=!!(h&&Object.prototype.hasOwnProperty.call(h,'classification')&&h.classification);
+    const item=Object.assign({
+      id:uid('harv'),date:'',cultureId:'',varietyId:'',blockId:'',chamberNumber:'',qty:0,unit:'kg',
+      quality:'Bonne',classification:'commercialisable',destination:'',notes:'',createdBy:'',createdAt:'',updatedAt:'',plantCount:''
+    },h||{});
+    if(!hadClassification){
+      item.classification=String(item.quality||'').toLowerCase().includes('déclass')?'declasse':'commercialisable';
+    }
+    if(!['commercialisable','declasse','perte'].includes(item.classification)) item.classification='commercialisable';
+    item.qty=Math.max(0,Number(item.qty||0));
+    item.chamberNumber=item.chamberNumber===''?'':Number(item.chamberNumber||0)||'';
+    if(!item.createdAt) item.createdAt=item.date?`${item.date}T12:00:00`:new Date().toISOString();
+    return item;
+  });
   x.inspections = Array.isArray(x.inspections) ? x.inspections : [];
 
   db=x; // nécessaire pour blockById pendant la migration des cultures
@@ -1057,6 +1136,7 @@ function renderAll(){
   renderDash();
   renderField();
   renderHarvestSummary();
+  renderHarvestAnalytics();
   renderBlocks();
   renderChamberMap();
   renderCultures();
@@ -1131,16 +1211,16 @@ function renderTodayFocus(){
 function renderHarvestSummary(){
   const el=getEl('harvestSummary'); if(!el) return;
   const today=todayISO(), month=today.slice(0,7);
-  const kgToday=db.harvests.filter(h=>h.date===today&&String(h.unit).toLowerCase()==='kg').reduce((s,h)=>s+Number(h.qty||0),0);
-  const kgMonth=db.harvests.filter(h=>String(h.date||'').startsWith(month)&&String(h.unit).toLowerCase()==='kg').reduce((s,h)=>s+Number(h.qty||0),0);
-  const entriesToday=db.harvests.filter(h=>h.date===today).length;
+  const todayRows=db.harvests.filter(h=>h.date===today),monthRows=db.harvests.filter(h=>String(h.date||'').startsWith(month));
+  const kgToday=harvestUnitTotals(todayRows).kg,kgMonth=harvestUnitTotals(monthRows).kg;
+  const sellMonth=monthRows.filter(h=>h.classification==='commercialisable').reduce((s,h)=>s+(harvestMassKg(h)||0),0);
+  const rate=kgMonth>0?sellMonth/kgMonth*100:null;
   el.innerHTML=`<div class="grid3">
-    <div><div class="harvestMetric">${kgToday.toLocaleString('fr-FR')} kg</div><div class="harvestUnit">aujourd’hui</div></div>
-    <div><div class="harvestMetric">${kgMonth.toLocaleString('fr-FR')} kg</div><div class="harvestUnit">ce mois</div></div>
-    <div><div class="harvestMetric">${entriesToday}</div><div class="harvestUnit">saisie(s) aujourd’hui</div></div>
-  </div>`;
+    <div><div class="harvestMetric">${kgToday.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</div><div class="harvestUnit">aujourd’hui</div></div>
+    <div><div class="harvestMetric">${kgMonth.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</div><div class="harvestUnit">ce mois</div></div>
+    <div><div class="harvestMetric">${rate===null?'—':rate.toLocaleString('fr-FR',{maximumFractionDigits:0})+' %'}</div><div class="harvestUnit">commercialisable ce mois</div></div>
+  </div>${harvestTotalsText(monthRows)!==`${kgMonth.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg`?`<div class="small muted" style="margin-top:8px">Toutes unités ce mois : ${harvestTotalsText(monthRows)}</div>`:''}`;
 }
-
 function renderOccupancySummary(){
   const el=getEl('occupancySummary'); if(!el) return;
   el.innerHTML=db.blocks.map(b=>{
@@ -1445,6 +1525,7 @@ function renderCultures(){
       <p><b>${c.qty||0}</b> plants · statut <b>${esc(c.status)}</b></p>
       ${allocations?`<p class="small"><b>Chambres :</b> ${allocations}</p>`:''}
       <p class="small">Semis : ${fmt(c.sowing)||'—'} · Mise en système : ${fmt(c.planting)||'—'} · Récolte prévue : ${fmt(c.harvest)||'—'}${c.endDate?` · Fin : ${fmt(c.endDate)}`:''}</p>
+      ${(()=>{const m=cultureHarvestMetrics(c.id);return m.rows.length?`<div class="harvestProd"><b>${m.kg.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</b> récoltés · ${m.rows.length} passage(s)${m.kgPerPlant!==null?` · <b>${(m.kgPerPlant*1000).toLocaleString('fr-FR',{maximumFractionDigits:0})} g/plant</b>`:''}<br><span class="muted">${m.first?`1re récolte ${fmt(m.first)}`:''}${m.last&&m.last!==m.first?` · dernière ${fmt(m.last)}`:''}</span> <button class="secondary" style="padding:5px 7px;margin-left:4px" onclick="openCultureHarvests('${c.id}')">Voir récoltes</button></div>`:''})()}
       ${c.notes?`<p class="muted">${esc(c.notes)}</p>`:''}
     </div>`;
   }).join('') : '<div class="empty">Aucune culture correspondant aux filtres.</div>';
@@ -1872,7 +1953,7 @@ function universalHits(query){
   });
   db.harvests.forEach(h=>{
     const hay=normalizeVoiceText(`${varietyName(h.varietyId)} ${blockName(h.blockId)} ${h.chamberNumber?chamberCode(h.blockId,h.chamberNumber):''} ${h.notes||''}`);
-    if(hay.includes(q)) add('Récolte',`${varietyName(h.varietyId)} · ${Number(h.qty||0).toLocaleString('fr-FR')} ${h.unit}`,`${fmt(h.date)} · ${h.chamberNumber?chamberCode(h.blockId,h.chamberNumber):blockName(h.blockId)}`,`show('field')`,20);
+    if(hay.includes(q)) add('Récolte',`${varietyName(h.varietyId)} · ${Number(h.qty||0).toLocaleString('fr-FR')} ${h.unit}`,`${fmt(h.date)} · ${h.chamberNumber?chamberCode(h.blockId,h.chamberNumber):blockName(h.blockId)}`,`show('harvests')`,20);
   });
   return hits.sort((a,b)=>b.score-a.score||byText(a.title,b.title)).slice(0,12);
 }
@@ -1973,54 +2054,278 @@ function openQuickMenu(){
 }
 
 function harvestCultureOptions(selected=''){
-  const arr=db.cultures.filter(c=>c.status==='Active');
+  const arr=db.cultures.filter(c=>c.status==='Active'||c.status==='Terminée');
   return '<option value="">— choisir une culture —</option>'+arr.map(c=>`<option value="${c.id}" ${c.id===selected?'selected':''}>${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))} · ${allocationsOf(c).map(a=>chamberCode(c.blockId,a.chamberNumber)).join(', ')}</option>`).join('');
 }
-function openHarvest(cultureId='',chamberNumber='',returnToTour=false){
+function harvestClassificationLabel(v){return v==='perte'?'Perte':v==='declasse'?'Déclassé':'Commercialisable'}
+function harvestClassificationClass(v){return v==='perte'?'loss':v==='declasse'?'downgraded':'sellable'}
+function harvestDestinationLabel(v){return ({vente:'Vente',transformation:'Transformation',autoconsommation:'Autoconsommation',don:'Don',dechet:'Déchet / compost'}[v]||'')}
+function harvestDestinationOptions(selected=''){
+  const opts=[['','Non précisée'],['vente','Vente'],['transformation','Transformation'],['autoconsommation','Autoconsommation'],['don','Don'],['dechet','Déchet / compost']];
+  return opts.map(([v,l])=>`<option value="${v}" ${selected===v?'selected':''}>${l}</option>`).join('');
+}
+function estimateHarvestPlants(c,chamberNumber=''){
+  if(!c)return '';
+  if(chamberNumber){
+    const a=allocationsOf(c).find(x=>Number(x.chamberNumber)===Number(chamberNumber));
+    return a?Number(a.qty||0):'';
+  }
+  return Number(c.qty||0)||'';
+}
+function openHarvest(cultureId='',chamberNumber='',returnToTour=false,editId=''){
   harvestReturnToTour=returnToTour;
-  modal(`<h2>⚖ Enregistrer une récolte</h2>
-    <label>Date</label><input id="hdate" type="date" value="${todayISO()}">
-    <label>Culture</label><select id="hculture" onchange="refreshHarvestChambers()">${harvestCultureOptions(cultureId)}</select>
-    <label>Chambre</label><select id="hchamber"></select>
-    <div class="row"><div><label>Quantité</label><input id="hqty" type="number" min="0" step=".01" placeholder="0"></div>
-    <div><label>Unité</label><select id="hunit"><option value="kg">kg</option><option value="g">g</option><option value="pièce">pièce</option><option value="botte">botte</option><option value="barquette">barquette</option></select></div></div>
-    <label>Qualité</label><select id="hquality"><option>Très bonne</option><option selected>Bonne</option><option>Correcte</option><option>Déclassée</option></select>
-    <label>Notes</label><textarea id="hnotes" placeholder="calibre, qualité, destination…"></textarea>
-    <br><button onclick="saveHarvest()">Enregistrer</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
-  refreshHarvestChambers(chamberNumber);
+  const h=editId?db.harvests.find(x=>x.id===editId):null;
+  const selectedCulture=h?.cultureId||cultureId;
+  const selectedChamber=h?.chamberNumber||chamberNumber;
+  modal(`<h2>${h?'✏️ Modifier la récolte':'⚖ Enregistrer une récolte'}</h2>
+    <label>Date</label><input id="hdate" type="date" value="${esc(h?.date||todayISO())}">
+    <label>Culture</label><select id="hculture" onchange="refreshHarvestChambers();refreshHarvestPlantHint()">${harvestCultureOptions(selectedCulture)}</select>
+    <label>Chambre</label><select id="hchamber" onchange="refreshHarvestPlantHint()"></select>
+    <div id="hplantHint" class="small muted" style="margin-top:5px"></div>
+    <div class="row"><div><label>Quantité</label><input id="hqty" type="number" min="0" step=".01" placeholder="0" value="${h?Number(h.qty||0):''}"></div>
+    <div><label>Unité</label><select id="hunit"><option value="kg" ${h?.unit==='kg'?'selected':''}>kg</option><option value="g" ${h?.unit==='g'?'selected':''}>g</option><option value="pièce" ${h?.unit==='pièce'?'selected':''}>pièce</option><option value="botte" ${h?.unit==='botte'?'selected':''}>botte</option><option value="barquette" ${h?.unit==='barquette'?'selected':''}>barquette</option></select></div></div>
+    <label>Classement de la récolte</label><select id="hclassification"><option value="commercialisable" ${!h||h.classification==='commercialisable'?'selected':''}>Commercialisable</option><option value="declasse" ${h?.classification==='declasse'?'selected':''}>Déclassé</option><option value="perte" ${h?.classification==='perte'?'selected':''}>Perte</option></select>
+    <label>Qualité visuelle</label><select id="hquality"><option ${h?.quality==='Très bonne'?'selected':''}>Très bonne</option><option ${!h||h.quality==='Bonne'?'selected':''}>Bonne</option><option ${h?.quality==='Correcte'?'selected':''}>Correcte</option><option ${h?.quality==='Déclassée'?'selected':''}>Déclassée</option></select>
+    <label>Destination</label><select id="hdestination">${harvestDestinationOptions(h?.destination||'')}</select>
+    <label>Nombre de plants de référence</label><input id="hplants" type="number" min="0" step="1" placeholder="automatique" value="${h?.plantCount||''}">
+    <div class="small muted">Utilisé pour calculer le rendement par plant. L’application propose automatiquement le nombre de plants de la culture ou de la chambre.</div>
+    <label>Notes</label><textarea id="hnotes" placeholder="calibre, qualité, destination…">${esc(h?.notes||'')}</textarea>
+    <br><button onclick="saveHarvest('${editId||''}')">${h?'Enregistrer les modifications':'Enregistrer'}</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
+  refreshHarvestChambers(selectedChamber);
+  refreshHarvestPlantHint(h?.plantCount||'');
 }
 function refreshHarvestChambers(preselect=''){
   const host=getEl('hchamber'); if(!host)return;
   const c=db.cultures.find(x=>x.id===getEl('hculture')?.value);
   const opts=c?allocationsOf(c).map(a=>`<option value="${a.chamberNumber}" ${String(a.chamberNumber)===String(preselect)?'selected':''}>${chamberCode(c.blockId,a.chamberNumber)}</option>`).join(''):'';
   host.innerHTML='<option value="">Toutes / non précisée</option>'+opts;
+  if(preselect!==''&&[...host.options].some(o=>String(o.value)===String(preselect)))host.value=String(preselect);
 }
-function saveHarvest(){
+function refreshHarvestPlantHint(forceValue=''){
+  const c=db.cultures.find(x=>x.id===getEl('hculture')?.value), chamber=getEl('hchamber')?.value||'';
+  const estimated=forceValue||estimateHarvestPlants(c,chamber);
+  const hint=getEl('hplantHint');
+  if(hint) hint.textContent=estimated?`Référence proposée : ${estimated} plant(s).`:'Nombre de plants non déterminé automatiquement.';
+  const input=getEl('hplants');
+  if(input&&!input.value&&estimated)input.value=estimated;
+}
+function saveHarvest(editId=''){
   const c=db.cultures.find(x=>x.id===getEl('hculture').value);
   const qty=Number(getEl('hqty').value||0);
   if(!c){alert('Choisis la culture concernée.');return}
   if(qty<=0){alert('Renseigne une quantité récoltée.');return}
-  db.harvests.push({
-    id:uid('harv'),date:getEl('hdate').value,cultureId:c.id,varietyId:c.varietyId,blockId:c.blockId,
-    chamberNumber:Number(getEl('hchamber').value||0)||'',qty,unit:getEl('hunit').value,
-    quality:getEl('hquality').value,notes:getEl('hnotes').value.trim(),createdBy:cloud.user?.id||'',
-    createdAt:new Date().toISOString()
-  });
-  closeModal();persist({message:'Récolte enregistrée'});
+  const chamberNumber=Number(getEl('hchamber').value||0)||'';
+  const existing=editId?db.harvests.find(x=>x.id===editId):null;
+  const item={
+    id:existing?.id||uid('harv'),date:getEl('hdate').value,cultureId:c.id,varietyId:c.varietyId,blockId:c.blockId,
+    chamberNumber,qty,unit:getEl('hunit').value,classification:getEl('hclassification').value,
+    quality:getEl('hquality').value,destination:getEl('hdestination').value,plantCount:Number(getEl('hplants').value||0)||estimateHarvestPlants(c,chamberNumber)||'',
+    notes:getEl('hnotes').value.trim(),createdBy:existing?.createdBy||cloud.user?.id||'',
+    createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()
+  };
+  if(existing) Object.assign(existing,item); else db.harvests.push(item);
+  closeModal();persist({message:existing?'Récolte modifiée':'Récolte enregistrée'});
   if(harvestReturnToTour){harvestReturnToTour=false;setTimeout(()=>showTourStep(),80)}
 }
+function openEditHarvest(id){openHarvest('','',false,id)}
 function deleteHarvest(id){
   if(!confirm('Supprimer cette saisie de récolte ?'))return;
   db.harvests=db.harvests.filter(h=>h.id!==id);persist({message:'Récolte supprimée'});
 }
 function renderHarvests(){
   const el=getEl('harvestList');if(!el)return;
-  const arr=[...db.harvests].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,30);
+  const arr=[...db.harvests].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,12);
   el.innerHTML=arr.length?arr.map(h=>`<div class="item"><div class="row"><div><b>${fmt(h.date)} · ${esc(varietyName(h.varietyId))}</b><br>
     <span class="harvestMetric" style="font-size:18px">${Number(h.qty||0).toLocaleString('fr-FR')} ${esc(h.unit)}</span>
-    <span class="muted"> · ${esc(blockName(h.blockId))}${h.chamberNumber?' · '+esc(chamberCode(h.blockId,h.chamberNumber)):''} · ${esc(h.quality||'')}</span>
-    ${h.notes?`<br><span class="small muted">${esc(h.notes)}</span>`:''}</div><button class="danger fit" onclick="deleteHarvest('${h.id}')">×</button></div></div>`).join(''):'<div class="empty">Aucune récolte enregistrée.</div>';
+    <span class="harvestClass ${harvestClassificationClass(h.classification)}">${harvestClassificationLabel(h.classification)}</span>
+    <span class="muted"> · ${esc(blockName(h.blockId))}${h.chamberNumber?' · '+esc(chamberCode(h.blockId,h.chamberNumber)):''}</span>
+    ${h.notes?`<br><span class="small muted">${esc(h.notes)}</span>`:''}</div><div class="fit toolbar"><button class="secondary" onclick="openEditHarvest('${h.id}')">✏️</button><button class="danger" onclick="deleteHarvest('${h.id}')">×</button></div></div></div>`).join(''):'<div class="empty">Aucune récolte enregistrée.</div>';
 }
+
+// ----- Analyse professionnelle des récoltes -----
+let harvestView='timeline';
+function harvestMassKg(h){
+  const u=String(h.unit||'').toLowerCase();
+  if(u==='kg')return Number(h.qty||0);
+  if(u==='g')return Number(h.qty||0)/1000;
+  return null;
+}
+function harvestUnitTotals(arr){
+  const out={kg:0,'pièce':0,'botte':0,'barquette':0};
+  arr.forEach(h=>{
+    const u=String(h.unit||'').toLowerCase();
+    if(u==='kg')out.kg+=Number(h.qty||0);
+    else if(u==='g')out.kg+=Number(h.qty||0)/1000;
+    else if(u in out)out[u]+=Number(h.qty||0);
+  });
+  return out;
+}
+function harvestTotalsText(arr){
+  const t=harvestUnitTotals(arr), parts=[];
+  if(t.kg>0)parts.push(`${t.kg.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg`);
+  ['pièce','botte','barquette'].forEach(u=>{if(t[u]>0)parts.push(`${t[u].toLocaleString('fr-FR')} ${u}${t[u]>1?'s':''}`)});
+  return parts.length?parts.join(' + '):'0';
+}
+function harvestDateRange(){
+  const period=getEl('harvestPeriod')?.value||'month', now=new Date(), today=todayISO();
+  let from='',to=today;
+  if(period==='today')from=today;
+  else if(period==='7'){const d=new Date();d.setDate(d.getDate()-6);from=d.toISOString().slice(0,10)}
+  else if(period==='month')from=today.slice(0,8)+'01';
+  else if(period==='prevmonth'){
+    const first=new Date(now.getFullYear(),now.getMonth()-1,1),last=new Date(now.getFullYear(),now.getMonth(),0);
+    from=first.toISOString().slice(0,10);to=last.toISOString().slice(0,10);
+  }else if(period==='year')from=`${now.getFullYear()}-01-01`;
+  else if(period==='all'){from='';to=''}
+  else if(period==='custom'){from=getEl('harvestFrom')?.value||'';to=getEl('harvestTo')?.value||''}
+  return {from,to,period};
+}
+function onHarvestPeriodChange(){
+  const custom=getEl('harvestPeriod')?.value==='custom';
+  if(getEl('harvestFromWrap'))getEl('harvestFromWrap').style.display=custom?'block':'none';
+  if(getEl('harvestToWrap'))getEl('harvestToWrap').style.display=custom?'block':'none';
+  renderHarvestAnalytics();
+}
+function populateHarvestFilters(){
+  const vSel=getEl('harvestVarietyFilter'),bSel=getEl('harvestBlockFilter'),uSel=getEl('harvestUserFilter');
+  if(vSel){const cur=vSel.value||'all'; const ids=[...new Set(db.harvests.map(h=>h.varietyId).filter(Boolean))];vSel.innerHTML='<option value="all">Toutes les variétés</option>'+ids.sort((a,b)=>byText(varietyName(a),varietyName(b))).map(id=>`<option value="${id}">${esc(varietyName(id))}</option>`).join('');if([...vSel.options].some(o=>o.value===cur))vSel.value=cur}
+  if(bSel){const cur=bSel.value||'all';bSel.innerHTML='<option value="all">Tous</option>'+db.blocks.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');if([...bSel.options].some(o=>o.value===cur))bSel.value=cur}
+  if(uSel){const cur=uSel.value||'all';uSel.innerHTML='<option value="all">Tous</option>'+cachedTeam().map(m=>`<option value="${m.user_id}">${esc(m.display_name)}</option>`).join('');if([...uSel.options].some(o=>o.value===cur))uSel.value=cur}
+  populateHarvestChamberFilter();
+}
+function populateHarvestChamberFilter(){
+  const sel=getEl('harvestChamberFilter');if(!sel)return;
+  const cur=sel.value||'all',block=getEl('harvestBlockFilter')?.value||'all';
+  let codes=[];
+  db.harvests.forEach(h=>{if(!h.chamberNumber)return;if(block!=='all'&&h.blockId!==block)return;codes.push({value:`${h.blockId}:${h.chamberNumber}`,label:chamberCode(h.blockId,h.chamberNumber)})});
+  const seen=new Set();codes=codes.filter(x=>!seen.has(x.value)&&seen.add(x.value)).sort((a,b)=>byText(a.label,b.label));
+  sel.innerHTML='<option value="all">Toutes</option>'+codes.map(x=>`<option value="${x.value}">${esc(x.label)}</option>`).join('');
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur;
+}
+function onHarvestBlockFilterChange(){populateHarvestChamberFilter();renderHarvestAnalytics()}
+function filteredHarvests(){
+  const {from,to}=harvestDateRange(),v=getEl('harvestVarietyFilter')?.value||'all',b=getEl('harvestBlockFilter')?.value||'all',ch=getEl('harvestChamberFilter')?.value||'all',cl=getEl('harvestClassFilter')?.value||'all',usr=getEl('harvestUserFilter')?.value||'all';
+  return db.harvests.filter(h=>{
+    if(from&&String(h.date)<from)return false;if(to&&String(h.date)>to)return false;
+    if(v!=='all'&&h.varietyId!==v)return false;if(b!=='all'&&h.blockId!==b)return false;
+    if(ch!=='all'&&`${h.blockId}:${h.chamberNumber}`!==ch)return false;if(cl!=='all'&&h.classification!==cl)return false;if(usr!=='all'&&h.createdBy!==usr)return false;
+    return true;
+  }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+}
+function harvestPeriodLabel(){
+  const {from,to,period}=harvestDateRange();
+  if(period==='today')return "Aujourd’hui";if(period==='7')return '7 derniers jours';if(period==='month')return 'Ce mois';if(period==='prevmonth')return 'Mois précédent';if(period==='year')return 'Cette année';if(period==='all')return 'Toutes les récoltes';
+  return `${fmt(from)||'début'} → ${fmt(to)||'maintenant'}`;
+}
+function resetHarvestFilters(){
+  ['harvestVarietyFilter','harvestBlockFilter','harvestChamberFilter','harvestClassFilter','harvestUserFilter'].forEach(id=>{if(getEl(id))getEl(id).value='all'});
+  if(getEl('harvestPeriod'))getEl('harvestPeriod').value='month';onHarvestPeriodChange();
+}
+function setHarvestView(v){harvestView=v;['timeline','variety','chamber','month'].forEach(x=>getEl(`harvestTab_${x}`)?.classList.toggle('active',x===v));renderHarvestAnalytics()}
+function culturePlantReference(cultureId,arr=[]){
+  const c=db.cultures.find(x=>x.id===cultureId); if(c?.qty)return Number(c.qty||0);
+  return Math.max(0,...arr.filter(h=>h.cultureId===cultureId).map(h=>Number(h.plantCount||0)));
+}
+function varietyYieldKgPerPlant(varietyId,arr){
+  const rows=arr.filter(h=>h.varietyId===varietyId),kg=rows.reduce((s,h)=>s+(harvestMassKg(h)||0),0);
+  const cultureIds=[...new Set(rows.map(h=>h.cultureId).filter(Boolean))];
+  const plants=cultureIds.reduce((s,id)=>s+culturePlantReference(id,rows),0);
+  return plants>0&&kg>0?kg/plants:null;
+}
+function harvestKpisHtml(arr){
+  const units=harvestUnitTotals(arr),vars=new Set(arr.map(h=>h.varietyId).filter(Boolean)).size;
+  const mass=arr.filter(h=>harvestMassKg(h)!==null),massTotal=mass.reduce((s,h)=>s+harvestMassKg(h),0),sell=mass.filter(h=>h.classification==='commercialisable').reduce((s,h)=>s+harvestMassKg(h),0);
+  const rate=massTotal>0?sell/massTotal*100:null;
+  return `<div class="harvestKpi"><b>${units.kg.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</b><span>récoltés en poids</span></div>
+    <div class="harvestKpi"><b>${arr.length}</b><span>passage(s) de récolte</span></div>
+    <div class="harvestKpi"><b>${vars}</b><span>variété(s)</span></div>
+    <div class="harvestKpi"><b>${rate===null?'—':rate.toLocaleString('fr-FR',{maximumFractionDigits:0})+' %'}</b><span>commercialisable${rate===null?' (poids non disponible)':''}</span></div>`;
+}
+function renderHarvestTimeline(arr){
+  if(!arr.length)return '<div class="empty">Aucune récolte pour ces filtres.</div>';
+  const groups={};arr.forEach(h=>(groups[h.date]??=[]).push(h));
+  return Object.keys(groups).sort().reverse().map(date=>`<div class="harvestGroup"><h3>${fmt(date)}</h3>${groups[date].map(h=>`<div class="item"><div class="row"><div><b>${esc(varietyName(h.varietyId))}</b> · <strong>${Number(h.qty||0).toLocaleString('fr-FR')} ${esc(h.unit)}</strong> <span class="harvestClass ${harvestClassificationClass(h.classification)}">${harvestClassificationLabel(h.classification)}</span><br><span class="small muted">${esc(blockName(h.blockId))}${h.chamberNumber?' · '+esc(chamberCode(h.blockId,h.chamberNumber)):''} · ${esc(memberName(h.createdBy))}${h.destination?' · '+esc(harvestDestinationLabel(h.destination)):''}</span>${h.notes?`<br><span class="small">${esc(h.notes)}</span>`:''}</div><div class="fit toolbar"><button class="secondary" onclick="openEditHarvest('${h.id}')">✏️</button><button class="danger" onclick="deleteHarvest('${h.id}')">×</button></div></div></div>`).join('')}</div>`).join('');
+}
+function renderHarvestByVariety(arr){
+  const ids=[...new Set(arr.map(h=>h.varietyId).filter(Boolean))];
+  if(!ids.length)return '<div class="empty">Aucune récolte pour ces filtres.</div>';
+  return ids.map(id=>{
+    const rows=arr.filter(h=>h.varietyId===id),yieldVal=varietyYieldKgPerPlant(id,rows),classes={commercialisable:0,declasse:0,perte:0};
+    rows.forEach(h=>{const kg=harvestMassKg(h);if(kg!==null)classes[h.classification]=(classes[h.classification]||0)+kg});
+    const chambers=[...new Set(rows.filter(h=>h.chamberNumber).map(h=>chamberCode(h.blockId,h.chamberNumber)))];
+    return `<div class="harvestGroup"><div class="harvestGroupTitle"><div><h3>${esc(varietyName(id))}</h3><b>${harvestTotalsText(rows)}</b> · ${rows.length} passage(s)</div><button class="secondary fit" onclick="filterHarvestVariety('${id}')">Isoler</button></div>
+      <div class="harvestCompact">${chambers.slice(0,12).map(c=>`<span class="harvestMini">${esc(c)}</span>`).join('')}${yieldVal!==null?`<span class="harvestMini"><b>${(yieldVal*1000).toLocaleString('fr-FR',{maximumFractionDigits:0})} g/plant</b></span>`:''}</div>
+      ${classes.commercialisable+classes.declasse+classes.perte>0?`<div class="small muted">Poids : ${classes.commercialisable.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg commercialisable · ${classes.declasse.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg déclassé · ${classes.perte.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg perte</div>`:''}
+    </div>`;
+  }).join('');
+}
+function filterHarvestVariety(id){if(getEl('harvestVarietyFilter'))getEl('harvestVarietyFilter').value=id;renderHarvestAnalytics()}
+function renderHarvestByChamber(arr){
+  const keys=[...new Set(arr.map(h=>h.chamberNumber?`${h.blockId}:${h.chamberNumber}`:'').filter(Boolean))];
+  if(!keys.length)return '<div class="empty">Aucune récolte avec chambre renseignée pour ces filtres.</div>';
+  return keys.map(key=>{const [blockId,n]=key.split(':'),rows=arr.filter(h=>`${h.blockId}:${h.chamberNumber}`===key),vars=[...new Set(rows.map(h=>varietyName(h.varietyId)))];return `<div class="harvestGroup"><div class="harvestGroupTitle"><div><h3>${esc(chamberCode(blockId,Number(n)))}</h3><b>${harvestTotalsText(rows)}</b> · ${rows.length} passage(s)<br><span class="small muted">${esc(vars.join(', '))}</span></div><button class="secondary fit" onclick="openChamber('${blockId}',${Number(n)})">Ouvrir</button></div></div>`}).join('');
+}
+function renderHarvestByMonth(arr){
+  const keys=[...new Set(arr.map(h=>String(h.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  if(!keys.length)return '<div class="empty">Aucune récolte pour ces filtres.</div>';
+  return keys.map(k=>{const rows=arr.filter(h=>String(h.date||'').startsWith(k)),d=new Date(k+'-01T12:00:00');return `<div class="harvestGroup"><div class="harvestGroupTitle"><div><h3>${d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</h3><b>${harvestTotalsText(rows)}</b> · ${rows.length} passage(s) · ${new Set(rows.map(h=>h.varietyId)).size} variété(s)</div></div></div>`}).join('');
+}
+function chartBarsHtml(data){
+  if(!data.length)return '<div class="empty">Pas de données en poids pour le graphique.</div>';
+  const max=Math.max(...data.map(x=>x.value),0.001);
+  return `<div class="harvestChart">${data.map(x=>`<div class="harvestChartRow"><div title="${esc(x.label)}">${esc(x.label)}</div><div class="harvestBarTrack"><div class="harvestBarFill" style="width:${Math.max(2,x.value/max*100)}%"></div></div><b>${x.value.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</b></div>`).join('')}</div>`;
+}
+function lineChartHtml(arr){
+  const daily={};arr.forEach(h=>{const kg=harvestMassKg(h);if(kg!==null)daily[h.date]=(daily[h.date]||0)+kg});
+  const pts=Object.entries(daily).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(pts.length<2)return '<div class="small muted">Il faut au moins deux dates avec une récolte en kg/g pour afficher la courbe d’évolution.</div>';
+  const w=640,h=170,pad=26,max=Math.max(...pts.map(x=>x[1]),0.001),minDate=new Date(pts[0][0]+'T12:00:00'),maxDate=new Date(pts[pts.length-1][0]+'T12:00:00'),span=Math.max(1,maxDate-minDate);
+  const coords=pts.map(([d,v])=>{const x=pad+(new Date(d+'T12:00:00')-minDate)/span*(w-pad*2),y=h-pad-(v/max)*(h-pad*2);return {d,v,x,y}});
+  const points=coords.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  return `<div class="harvestLineWrap"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Évolution des récoltes en kilogrammes"><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="harvestLineGrid"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" class="harvestLineGrid"/><polyline points="${points}" class="harvestLine"/>${coords.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4" class="harvestDot"><title>${fmt(p.d)} : ${p.v.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</title></circle>`).join('')}</svg><div class="small muted">${fmt(pts[0][0])} → ${fmt(pts[pts.length-1][0])} · survole/touche les points pour la valeur</div></div>`;
+}
+function renderHarvestCharts(arr){
+  const host=getEl('harvestCharts');if(!host)return;
+  const byVar={};arr.forEach(h=>{const kg=harvestMassKg(h);if(kg!==null)byVar[h.varietyId]=(byVar[h.varietyId]||0)+kg});
+  const bars=Object.entries(byVar).map(([id,value])=>({label:varietyName(id),value})).sort((a,b)=>b.value-a.value).slice(0,12);
+  host.innerHTML=`<h4>Production en poids par variété</h4>${chartBarsHtml(bars)}<h4 style="margin-top:18px">Évolution dans le temps</h4>${lineChartHtml(arr)}<div class="harvestNoMix">Les graphiques en poids convertissent les grammes en kilogrammes. Les pièces, bottes et barquettes restent affichées séparément dans les totaux et ne sont jamais mélangées aux kg.</div>`;
+}
+function renderHarvestAnalytics(){
+  const body=getEl('harvestAnalyticsBody');if(!body)return;
+  populateHarvestFilters();
+  const arr=filteredHarvests();
+  if(getEl('harvestPeriodTitle'))getEl('harvestPeriodTitle').textContent=`Production · ${harvestPeriodLabel()}`;
+  if(getEl('harvestKpis'))getEl('harvestKpis').innerHTML=harvestKpisHtml(arr);
+  ['timeline','variety','chamber','month'].forEach(x=>getEl(`harvestTab_${x}`)?.classList.toggle('active',x===harvestView));
+  body.innerHTML=harvestView==='variety'?renderHarvestByVariety(arr):harvestView==='chamber'?renderHarvestByChamber(arr):harvestView==='month'?renderHarvestByMonth(arr):renderHarvestTimeline(arr);
+  renderHarvestCharts(arr);
+}
+function csvCell(v){
+  const s=String(v??'').replace(/"/g,'""');return `"${s}"`;
+}
+function exportHarvestCSV(){
+  const arr=filteredHarvests();
+  if(!arr.length){alert('Aucune récolte à exporter avec les filtres actuels.');return}
+  const headers=['Date','Variété','Culture','GrowStream','Chambre','Quantité','Unité','Classement','Qualité','Destination','Plants de référence','Récolté par','Notes'];
+  const rows=arr.map(h=>[
+    h.date,varietyName(h.varietyId),h.cultureId,blockName(h.blockId),h.chamberNumber?chamberCode(h.blockId,h.chamberNumber):'',
+    Number(h.qty||0),h.unit,harvestClassificationLabel(h.classification),h.quality||'',harvestDestinationLabel(h.destination),h.plantCount||'',memberName(h.createdBy),h.notes||''
+  ]);
+  const csv='\uFEFF'+[headers,...rows].map(r=>r.map(csvCell).join(';')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=`Gestion_Serre_recoltes_${todayISO()}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function cultureHarvestMetrics(cultureId){
+  const rows=db.harvests.filter(h=>h.cultureId===cultureId),kg=rows.reduce((s,h)=>s+(harvestMassKg(h)||0),0),c=db.cultures.find(x=>x.id===cultureId),plants=culturePlantReference(cultureId,rows);
+  const first=[...rows].sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0]?.date||'',last=[...rows].sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0]?.date||'';
+  return {rows,kg,plants,kgPerPlant:plants>0&&kg>0?kg/plants:null,first,last};
+}
+function openCultureHarvests(cultureId){
+  const c=db.cultures.find(x=>x.id===cultureId);if(!c)return;
+  show('harvests');setTimeout(()=>{if(getEl('harvestVarietyFilter'))getEl('harvestVarietyFilter').value=c.varietyId;renderHarvestAnalytics()},80);
+}
+
 function inspectionTypeClass(type){return type==='Problème'?'problem':type==='Observation'?'note':'ok'}
 function renderInspections(){
   const el=getEl('inspectionList');if(!el)return;

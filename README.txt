@@ -1,59 +1,64 @@
-GESTION SERRE — V17 ASSISTANT TERRAIN
+GESTION SERRE — V18 RÉCOLTES & RENDEMENTS
 
-V17 conserve intégralement V16 :
-- Supabase partagé Benoît / Carine
-- fonctionnement offline-first
-- file de synchronisation
-- sauvegardes et restauration
-- snapshots locaux
-- reprise des brouillons après passage dans Chrome
-- cultures, chambres GrowStream, planning, stock, ventes, récoltes, QR codes et tournée.
+V18 conserve toutes les fonctions des versions précédentes :
+- synchronisation Benoît / Carine via Supabase ;
+- offline-first et file de synchronisation ;
+- sauvegardes / restauration V16 ;
+- assistant vocal, dictée, recherche universelle et journal automatique V17 ;
+- QR / NFC, tournée de serre, cultures, chambres, stock, planning, ventes.
 
-NOUVEAUTÉS V17
+NOUVEAUTÉS V18
 
-1. ASSISTANT VOCAL TERRAIN
-Pendant une tournée, toucher « Écouter » puis dire par exemple :
-- « RAS »
-- « problème pucerons sur trois plants »
-- « problème feuilles jaunes créer une tâche demain »
-- « observation début de floraison »
-- « récolte 2 kilos 400 »
-- « suivant »
-- « précédente »
+1. ONGLET « RÉCOLTES » DÉDIÉ
+Accès direct depuis la barre principale avec un véritable tableau de bord de production.
 
-Le système reste push-to-talk : il n'écoute jamais en permanence.
-Les boutons tactiles restent toujours disponibles.
-La compatibilité de reconnaissance vocale dépend du navigateur Android et peut nécessiter une connexion réseau.
+2. FILTRES
+- Aujourd’hui
+- 7 derniers jours
+- Ce mois
+- Mois précédent
+- Cette année
+- Toutes les dates
+- Période personnalisée
+- Variété
+- GrowStream
+- Chambre
+- Classement commercial
+- Récolté par Benoît / Carine
 
-2. DICTÉE DANS LES FORMULAIRES
-Les zones de notes / observations affichent automatiquement un bouton « Dicter » lorsque le navigateur prend la reconnaissance vocale en charge.
+3. QUATRE VUES
+- Chronologie
+- Par variété
+- Par chambre
+- Par mois
 
-3. CONFIRMATION
-Une vibration confirme les commandes.
-Une confirmation vocale peut être activée ou désactivée dans Mode terrain.
+4. CLASSEMENT COMMERCIAL
+Chaque récolte peut être classée :
+- Commercialisable
+- Déclassé
+- Perte
 
-4. RECHERCHE UNIVERSELLE
-Depuis l'accueil, une seule recherche retrouve :
-- chambres (L17, S04...)
-- variétés
-- cultures
-- tâches
-- stock
-- récoltes.
+La qualité visuelle reste disponible séparément.
+Une destination facultative peut être indiquée : vente, transformation, autoconsommation, don, déchet/compost.
 
-5. JOURNAL AUTOMATIQUE
-Le tableau de bord construit le journal du jour à partir des opérations enregistrées :
-- contrôles RAS
-- observations et problèmes
-- récoltes
-- tâches terminées
-- ventes.
-Le journal peut être copié en texte pour archivage ou transmission.
+5. RENDEMENT
+Le formulaire mémorise un nombre de plants de référence.
+Le système calcule le rendement en g/plant pour les récoltes au poids.
+La fiche culture affiche automatiquement le cumul récolté, le nombre de passages, la première / dernière récolte et le rendement par plant lorsque calculable.
 
-6. FIABILITÉ
-Aucune nouvelle table Supabase n'est requise.
-Les nouvelles fonctions utilisent les données déjà synchronisées.
-Les commandes vocales ne remplacent jamais les contrôles manuels.
+6. GRAPHIQUES
+- production en kg par variété ;
+- évolution des récoltes dans le temps.
+Les grammes sont convertis en kilogrammes.
+Les kg ne sont jamais additionnés aux pièces, bottes ou barquettes.
+
+7. MODIFICATION ET EXPORT
+Chaque saisie peut désormais être modifiée ou supprimée depuis la chronologie.
+Le bouton CSV exporte uniquement les récoltes correspondant aux filtres affichés, pratique pour Excel, la comptabilité ou le suivi DJA.
+
+8. MIGRATION AUTOMATIQUE
+Les anciennes récoltes V15/V16/V17 sont conservées.
+Si aucun classement commercial n’existait, elles sont classées commercialisables par défaut, sauf ancienne qualité « Déclassée » qui devient « Déclassé ».
 
 MISE À JOUR GITHUB PAGES
 Remplacer les 5 fichiers :
@@ -63,8 +68,5 @@ Remplacer les 5 fichiers :
 - README.txt
 - qr-chambres.pdf
 
-Après publication :
-- fermer complètement Gestion Serre ;
-- la rouvrir avec Internet ;
-- autoriser le microphone au premier essai vocal.
-Carine reçoit la même V17 en fermant / rouvrant son application.
+Aucune nouvelle table ni nouveau script Supabase n’est nécessaire.
+Fermer complètement l’application puis la rouvrir avec Internet après publication.
