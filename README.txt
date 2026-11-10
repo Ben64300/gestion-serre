@@ -1,3 +1,37 @@
+GESTION SERRE — V19 VOIX & TRANSFERTS
+
+NOUVEAUTÉS V19
+
+1) DÉPLACEMENT ENTRE GROWSTREAM L ET S
+- Dans une chambre : sélectionner « ↔ Déplacer » sur la culture concernée.
+- Choisir le GrowStream de destination (L ou S), puis la chambre disponible.
+- Indiquer un nombre de plants : tout ou partie du lot.
+- Vérification des places disponibles avant enregistrement.
+- Entre L et S, un nouveau lot lié est créé à destination ; les récoltes déjà saisies restent liées à l'ancien lot et à l'ancienne chambre.
+- Le transfert entrant et sortant apparaît dans l'historique de chacune des deux chambres.
+- Annuler la dernière modification reste disponible en cas d'erreur.
+
+2) OUVERTURE VOCALE DIRECTE
+- Depuis l'accueil, bouton « 🎙️ Ouvrir à la voix » sous la recherche.
+- Depuis « Mode terrain », bouton « Ouvrir à la voix » sans lancer de tournée.
+- Dire « Ouvre S24 », « L15 », « L quinze », « S vingt-quatre », « S quatre », etc.
+- Ouvre la fiche avec les actions Récolte / Ajouter / Déplacer / Modifier.
+- La tournée vocale V17 reste fonctionnelle : « RAS », « problème », « observation », « récolte », « suivant » et « précédente ».
+- Si le navigateur ne reconnaît pas la voix ou si la 4G est absente, utiliser la recherche et les boutons tactiles ; la reconnaissance en ligne n'est pas garantie hors ligne sur Android.
+
+3) CONSERVATION DES DONNÉES
+- Pas de nouvelle table Supabase ni de suppression de données.
+- Clé de données locale conservée ; V18 migre automatiquement vers V19.
+- V18 Récoltes & Rendements, V17 assistant terrain, NFC/QR, stocks, ventes, sauvegardes, mode offline-first et partage sont conservés.
+- Ne pas effacer les données de navigation du navigateur pendant la mise à jour.
+- Vérifier que la synchronisation indique 🟢 Synchronisé, puis effectuer une sauvegarde complète avant déploiement.
+
+DÉPLOIEMENT GITHUB PAGES
+Remplacer les 5 fichiers à la racine du dépôt : index.html, manifest.json, sw.js, README.txt, qr-chambres.pdf
+(Le PDF QR reste inchangé.)
+Actualiser l'application avec Internet, la fermer et la rouvrir. Vérifier l'affichage V19 dans Paramètres puis tester une voix et un transfert avec des données de test.
+
+=== HISTORIQUE V18 ===
 GESTION SERRE — V18 RÉCOLTES & RENDEMENTS
 
 V18 conserve toutes les fonctions des versions précédentes :

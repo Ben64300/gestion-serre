@@ -222,6 +222,11 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <div class="assistantTitle">🔎 Recherche universelle <span class="proBadge">PRO</span></div>
     <p class="small muted">Retrouve immédiatement une chambre, une variété, une culture, une tâche, un stock ou une récolte.</p>
     <div class="searchBox"><input id="globalSearch" placeholder="ex. L17, Pak choï, Copper Currant, engrais…" oninput="renderUniversalSearch()"></div>
+    <div class="toolbar" style="margin-top:9px">
+      <button id="dashboardVoiceBtn" class="secondary voiceBtn" type="button" onclick="startChamberVoiceNavigation()">🎙️ Ouvrir à la voix</button>
+      <span class="small muted">Dis « Ouvre S24 » ou « L quinze ».</span>
+    </div>
+    <div id="dashboardVoiceStatus" class="voiceTranscript" role="status" aria-live="polite">Appuie sur le micro et annonce le code d'une chambre.</div>
     <div id="globalSearchResults" class="searchResults"></div>
   </div>
 
@@ -249,7 +254,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   <div class="row"><h2>Mode terrain</h2><button class="fit" onclick="startTour()">🚶 Démarrer une tournée</button></div>
   <div class="card assistantCard">
     <div class="assistantTitle">🎙️ Assistant vocal terrain <span class="proBadge">PRO</span></div>
-    <p class="small muted">Pendant une tournée : « RAS », « problème pucerons », « observation feuilles jaunes », « récolte 2 kilos 400 », « suivant » ou « précédente ».</p>
+    <p class="small muted">« Ouvre S24 » ou « L quinze » depuis n'importe quel écran. Pendant une tournée : « RAS », « problème pucerons », « récolte 2 kilos 400 », « suivant » ou « précédente ».</p>
     <div class="toolbar">
       <button id="fieldVoiceBtn" class="voiceBtn" onclick="startVoiceAssistant()">🎙️ Écouter</button>
       <label class="small" style="display:flex;align-items:center;gap:7px"><input id="voiceFeedbackToggle" type="checkbox" style="width:auto" onchange="setVoiceFeedback(this.checked)"> Confirmation vocale</label>
@@ -261,6 +266,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <div class="fieldActions">
       <button onclick="openQRScanner()">▣ Scanner QR</button>
       <button class="secondary" onclick="openChamberLookup()">🔎 Ouvrir une chambre</button>
+      <button class="secondary" onclick="startChamberVoiceNavigation()">🎙️ Ouvrir à la voix</button>
       <button class="secondary" onclick="openHarvest()">⚖ Récolte</button>
       <button class="secondary" onclick="window.open('./qr-chambres.pdf','_blank')">🖨 QR à imprimer</button>
     </div>
@@ -411,7 +417,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V18 installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V19 installée.</div>
   </div>
 
   <div class="card">
@@ -429,8 +435,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de cette V18 Récoltes & Rendements</h3>
-    <p class="muted">V18 ajoute un véritable tableau de bord professionnel des récoltes : filtres, analyses par variété, chambre et mois, rendement par plant, qualité commerciale et édition des saisies, tout en conservant l’assistant terrain V17.</p>
+    <h3>À propos de la V19 · Voix & transferts</h3>
+    <p class="muted">V19 ajoute l'ouverture vocale directe des 116 chambres et le transfert de plants entre les GrowStream L et S, complet ou partiel, avec vérification des places et historique. Les récoltes V18 et toutes les fonctions précédentes sont conservées.</p>
   </div>
 </section>
 </main>
@@ -471,7 +477,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V18 RÉCOLTES & RENDEMENTS
+   GESTION SERRE — V19 NAVIGATION VOCALE & TRANSFERTS
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -487,7 +493,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -1098,7 +1104,7 @@ function blockIssues(blockId){
 function recordChamberHistory(culture,allocation,endDate=todayISO()){
   if(!culture||!allocation) return;
   const exists=db.chamberHistory.some(h=>
-    h.cultureId===culture.id &&
+    !h.eventType && h.cultureId===culture.id &&
     Number(h.chamberNumber)===Number(allocation.chamberNumber) &&
     h.endDate===endDate
   );
@@ -1126,7 +1132,7 @@ function chamberHistoryItems(blockId,n){
         startDate:c.planting||c.sowing||'',endDate:c.endDate||c.harvest||''
       };
     });
-  const keys=new Set(explicit.map(h=>`${h.cultureId}|${h.chamberNumber}`));
+  const keys=new Set(explicit.filter(h=>!h.eventType).map(h=>`${h.cultureId}|${h.chamberNumber}`));
   return [...explicit,...inferred.filter(h=>!keys.has(`${h.cultureId}|${h.chamberNumber}`))]
     .sort((a,b)=>String(b.endDate||'').localeCompare(String(a.endDate||'')));
 }
@@ -1346,9 +1352,11 @@ function openChamber(blockId,n){
 
   const hist=historyItems.length
     ? `<details style="margin-top:10px"><summary>Historique de cette chambre (${historyItems.length})</summary>
-      ${historyItems.slice(0,20).map(h=>`<div class="item small">
+      ${historyItems.slice(0,30).map(h=>`<div class="item small">
         <b>${esc(varietyName(h.varietyId))}</b> · ${h.qty} plant(s)<br>
-        ${fmt(h.startDate)||'—'} → ${fmt(h.endDate)||'—'}
+        ${h.eventType==='transfer_out' ? `↗ Transférés vers ${esc(h.relatedCode||'autre chambre')} · ${fmt(h.endDate)||'—'}` :
+          h.eventType==='transfer_in' ? `↙ Reçus de ${esc(h.relatedCode||'autre chambre')} · ${fmt(h.endDate)||'—'}` :
+          `${fmt(h.startDate)||'—'} → ${fmt(h.endDate)||'—'}`}
       </div>`).join('')}
     </details>` : '';
 
@@ -1651,41 +1659,112 @@ function saveRemovePlants(cultureId,n){
   closeModal(); persist({message:'Plants retirés'});
 }
 
+// V19 : transferts possibles au sein d'un GrowStream ou d'un GrowStream à l'autre.
+// Une culture est liée à un seul bloc : un transfert inter-blocs crée donc
+// un lot lié à l'ancien, sans modifier les récoltes historiques du lot initial.
+function transferAvailableDestinations(fromBlockId,fromN){
+  return db.blocks.flatMap(block=>Array.from({length:Number(block.chambers||0)},(_,i)=>i+1)
+    .filter(n=>!(block.id===fromBlockId && n===Number(fromN)))
+    .filter(n=>chamberRemaining(block.id,n)>0)
+    .map(n=>({blockId:block.id,n,free:chamberRemaining(block.id,n)})));
+}
 function openMoveAllocation(cultureId,fromN){
   const c=db.cultures.find(x=>x.id===cultureId);
   const source=allocationsOf(c).find(x=>x.chamberNumber===Number(fromN));
-  if(!c||!source) return;
-  const b=blockById(c.blockId);
-  const opts=Array.from({length:Number(b?.chambers||0)},(_,i)=>i+1)
-    .filter(n=>n!==Number(fromN)&&chamberRemaining(c.blockId,n)>0)
-    .map(n=>`<option value="${n}">${chamberCode(c.blockId,n)} — ${chamberRemaining(c.blockId,n)} libre(s)</option>`).join('');
-  if(!opts){ alert('Aucune autre chambre ne possède de place disponible.'); return; }
-  modal(`<h2>Déplacer · ${chamberCode(c.blockId,fromN)}</h2>
-    <p>${esc(varietyName(c.varietyId))} : ${source.qty} plant(s)</p>
-    <label>Vers la chambre</label><select id="moveTarget">${opts}</select>
-    <label>Nombre de plants à déplacer</label><input id="moveQty" type="number" min="1" max="${source.qty}" value="${source.qty}">
-    <br><button onclick="saveMoveAllocation('${cultureId}',${fromN})">Déplacer</button>
+  if(!c||!source || c.status==='Terminée') return;
+  const destinations=transferAvailableDestinations(c.blockId,fromN);
+  if(!destinations.length){alert('Aucune chambre disponible dans les deux GrowStream.');return;}
+  const selectedBlock=destinations.some(d=>d.blockId===c.blockId)?c.blockId:destinations[0].blockId;
+  modal(`<h2>↔ Déplacer · ${chamberCode(c.blockId,fromN)}</h2>
+    <p><b>${esc(varietyName(c.varietyId))}</b> : ${source.qty} plant(s) actuellement dans cette chambre.</p>
+    <label>GrowStream de destination</label>
+    <select id="moveBlock" onchange="refreshMoveTargets('${cultureId}',${fromN})">${blockOptions(selectedBlock)}</select>
+    <label>Chambre de destination</label><select id="moveTarget" onchange="refreshMoveCapacity()"></select>
+    <div id="moveAvailability" class="small muted" role="status"></div>
+    <label>Nombre de plants à déplacer</label>
+    <input id="moveQty" type="number" min="1" max="${source.qty}" step="1" value="${source.qty}">
+    <p class="small muted">Transfert partiel ou total. Les places sont vérifiées avant l'enregistrement. Un déplacement entre L et S crée un nouveau lot lié au précédent pour préserver les récoltes historiques.</p>
+    <button onclick="saveMoveAllocation('${cultureId}',${fromN})">Confirmer le déplacement</button>
     <button class="secondary" onclick="openChamber('${c.blockId}',${fromN})">Annuler</button>`);
+  refreshMoveTargets(cultureId,fromN);
+}
+function refreshMoveTargets(cultureId,fromN){
+  const c=db.cultures.find(x=>x.id===cultureId),blockId=getEl('moveBlock')?.value;
+  const el=getEl('moveTarget');if(!c||!el)return;
+  const opts=transferAvailableDestinations(c.blockId,fromN).filter(x=>x.blockId===blockId);
+  el.innerHTML=opts.length?opts.map(x=>`<option value="${x.n}">${chamberCode(blockId,x.n)} — ${x.free} libre(s)</option>`).join(''):'<option value="">Aucune place libre dans ce système</option>';
+  el.disabled=!opts.length;
+  refreshMoveCapacity();
+}
+function refreshMoveCapacity(){
+  const b=getEl('moveBlock')?.value,n=Number(getEl('moveTarget')?.value||0);
+  const free=b&&n?chamberRemaining(b,n):0;
+  const host=getEl('moveAvailability');
+  if(host) host.textContent=free?`${chamberCode(b,n)} : ${free} emplacement(s) disponible(s).`:'Choisis un autre GrowStream : aucune chambre disponible ici.';
+}
+function recordTransferHistory(culture,fromBlockId,fromN,toBlockId,toN,q,toCultureId){
+  const date=todayISO(),transferId=uid('transfer');
+  const originalCode=chamberCode(fromBlockId,fromN),targetCode=chamberCode(toBlockId,toN);
+  const common={varietyId:culture.varietyId,qty:q,startDate:date,endDate:date,transferId};
+  db.chamberHistory.push({id:uid('h'),...common,cultureId:culture.id,blockId:fromBlockId,
+    chamberNumber:Number(fromN),eventType:'transfer_out',relatedCode:targetCode});
+  db.chamberHistory.push({id:uid('h'),...common,cultureId:toCultureId,blockId:toBlockId,
+    chamberNumber:Number(toN),eventType:'transfer_in',relatedCode:originalCode});
+}
+function movePlantsBetweenChambers(cultureId,fromN,toBlockId,toN,quantity){
+  const c=db.cultures.find(x=>x.id===cultureId);
+  const destBlock=blockById(toBlockId);
+  const source=c?allocationsOf(c).find(a=>a.chamberNumber===Number(fromN)):null;
+  const n=Number(toN),q=Number(quantity);
+  if(!c||c.status==='Terminée'||!source||!destBlock||!Number.isInteger(n)||n<1||n>Number(destBlock.chambers||0) || !Number.isInteger(q)||q<1||q>source.qty)
+    throw new Error('Culture, chambre ou quantité incorrecte.');
+  if(c.blockId===toBlockId && Number(fromN)===n)throw new Error('Choisis une chambre différente de celle de départ.');
+  const free=chamberRemaining(toBlockId,n);
+  if(q>free)throw new Error(`${chamberCode(toBlockId,n)} : seulement ${free} emplacement(s) libre(s).`);
+  const fromBlockId=c.blockId,originalTotal=Number(c.qty||0),originalStatus=c.status;
+  if(toBlockId===fromBlockId){
+    // Même système : on garde l'identifiant du lot et ses récoltes.
+    const current=c.allocations.find(a=>Number(a.chamberNumber)===Number(fromN));
+    current.qty=Number(current.qty)-q;
+    const existing=c.allocations.find(a=>Number(a.chamberNumber)===n);
+    if(existing)existing.qty=Number(existing.qty)+q;
+    else c.allocations.push({chamberNumber:n,qty:q});
+    c.allocations=c.allocations.filter(a=>Number(a.qty)>0);
+    syncCultureAllocationFields(c);
+    recordTransferHistory(c,fromBlockId,fromN,toBlockId,n,q,c.id);
+    return {targetCultureId:c.id,blockId:toBlockId,n,quantity:q};
+  }
+  // Entre systèmes : conserver l'ancien lot pour les récoltes déjà saisies.
+  // Ne pas rattacher d'anciennes récoltes à une chambre où elles n'ont pas eu lieu.
+  const moved=clone(c);
+  Object.keys(moved).filter(k=>k.startsWith('_cloud')||k.startsWith('_local')).forEach(k=>delete moved[k]);
+  moved.id=uid('c');
+  moved.blockId=toBlockId;
+  moved.system=destBlock.system||'';
+  moved.status=originalStatus;
+  moved.endDate='';
+  moved.allocations=[{chamberNumber:n,qty:q}];
+  moved.harvestReferenceQty=q;
+  moved.transferredFrom={cultureId:c.id,blockId:fromBlockId,chamberNumber:Number(fromN),date:todayISO()};
+  syncCultureAllocationFields(moved);
+  const current=c.allocations.find(a=>Number(a.chamberNumber)===Number(fromN));
+  current.qty=Number(current.qty)-q;
+  c.allocations=c.allocations.filter(a=>Number(a.qty)>0);
+  c.harvestReferenceQty=Number(c.harvestReferenceQty||0)||originalTotal;
+  syncCultureAllocationFields(c);
+  if(!c.allocations.length){c.status='Terminée';c.endDate=todayISO();}
+  db.cultures.push(moved);
+  recordTransferHistory(c,fromBlockId,fromN,toBlockId,n,q,moved.id);
+  return {targetCultureId:moved.id,blockId:toBlockId,n,quantity:q};
 }
 function saveMoveAllocation(cultureId,fromN){
-  const c=db.cultures.find(x=>x.id===cultureId);
-  const source=c?.allocations?.find(x=>Number(x.chamberNumber)===Number(fromN));
-  if(!c||!source) return;
-
-  const target=Number(getEl('moveTarget').value);
-  const q=Number(getEl('moveQty').value||0);
-  const free=chamberRemaining(c.blockId,target);
-  if(q<1||q>Number(source.qty)||q>free){
-    alert(`Déplacement impossible. Place disponible : ${free}.`);
-    return;
-  }
-  source.qty=Number(source.qty)-q;
-  let dest=c.allocations.find(x=>Number(x.chamberNumber)===target);
-  if(dest) dest.qty=Number(dest.qty)+q;
-  else c.allocations.push({chamberNumber:target,qty:q});
-  c.allocations=c.allocations.filter(x=>Number(x.qty)>0);
-  syncCultureAllocationFields(c);
-  closeModal(); persist({message:'Plants déplacés'});
+  const toBlockId=getEl('moveBlock')?.value,toN=getEl('moveTarget')?.value;
+  const q=Number(getEl('moveQty')?.value);
+  try{
+    const result=movePlantsBetweenChambers(cultureId,fromN,toBlockId,toN,q);
+    closeModal();persist({message:`${q} plant(s) déplacé(s) vers ${chamberCode(toBlockId,result.n)} — Annuler possible`});
+    setTimeout(()=>openChamber(result.blockId,result.n),80);
+  }catch(e){alert(e.message||'Déplacement impossible.');}
 }
 
 function releaseOneChamber(cultureId,n){
@@ -1733,15 +1812,17 @@ function setVoiceStatus(message){
   if(field) field.textContent=message;
   const tour=getEl('tourVoiceStatus');
   if(tour) tour.textContent=message;
+  const dash=getEl('dashboardVoiceStatus');
+  if(dash) dash.textContent=message;
 }
 function updateVoiceUI(){
   const toggle=getEl('voiceFeedbackToggle');
   if(toggle) toggle.checked=voiceFeedbackEnabled();
-  const buttons=[getEl('fieldVoiceBtn'),getEl('tourVoiceBtn')].filter(Boolean);
+  const buttons=[getEl('fieldVoiceBtn'),getEl('tourVoiceBtn'),getEl('dashboardVoiceBtn')].filter(Boolean);
   buttons.forEach(btn=>{
     btn.disabled=!voiceSupported();
     btn.classList.toggle('listening',voiceListening);
-    btn.textContent=voiceListening?'🔴 J’écoute…':'🎙️ Écouter';
+    btn.textContent=voiceListening?'🔴 J’écoute…':(btn.id==='dashboardVoiceBtn'?'🎙️ Ouvrir à la voix':'🎙️ Écouter');
   });
   if(!voiceSupported()) setVoiceStatus("La reconnaissance vocale n'est pas disponible dans ce navigateur. Les boutons tactiles restent entièrement fonctionnels.");
 }
@@ -1751,6 +1832,59 @@ function normalizeVoiceText(s){
     .replace(/[’']/g,' ').replace(/[.,;:!?]/g,' ')
     .replace(/\s+/g,' ').trim();
 }
+// V19 : comprend les codes dictés « L15 », « L quinze », « S vingt-quatre ».
+function spokenChamberNumber(words){
+  const w=words.map(x=>x.toLowerCase());
+  if(!w.length)return null;
+  if(/^0*\d{1,3}$/.test(w[0]))return Number(w[0]);
+  const units={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,
+    dix:10,onze:11,douze:12,treize:13,quatorze:14,quinze:15,seize:16};
+  if(w[0]==='dix' && w[1] in units && units[w[1]]<10)return 10+units[w[1]];
+  if(w[0] in units)return units[w[0]];
+  const tens={vingt:20,trente:30,quarante:40,cinquante:50,soixante:60};
+  if(!(w[0] in tens))return null;
+  const base=tens[w[0]];
+  if(base===60)return 60;
+  let next=w[1]==='et'?w[2]:w[1];
+  if(!next)return base;
+  if(next in units && units[next]<10)return base+units[next];
+  return base;
+}
+function parseSpokenChamber(raw){
+  const direct=parseChamberCode(raw);
+  if(direct)return direct;
+  const normalized=normalizeVoiceText(raw).replace(/[-–—]/g,' ').replace(/[^a-z0-9\s]/g,' ');
+  const tokens=normalized.split(/\s+/).filter(Boolean);
+  for(let i=0;i<tokens.length;i++){
+    let prefix=null,rest=[];
+    const w=tokens[i];
+    const glued=w.match(/^(s|l)(0*\d{1,3})$/);
+    if(glued){prefix=glued[1];rest=[glued[2]];}
+    else if(['s','esse','ess','est'].includes(w))prefix='S';
+    else if(['l','elle','aile'].includes(w))prefix='L';
+    if(!prefix)continue;
+    if(!rest.length)rest=tokens.slice(i+1,i+5);
+    const n=spokenChamberNumber(rest);
+    if(!Number.isInteger(n))continue;
+    const block=db.blocks.find(b=>String(blockPrefix(b.id)).toUpperCase()===prefix.toUpperCase());
+    if(block && n>=1 && n<=Number(block.chambers||0))return {blockId:block.id,n};
+  }
+  return null;
+}
+function startChamberVoiceNavigation(){
+  startRecognition({prompt:'Dis « ouvre S24 », « L quinze » ou « S quatre »…',
+    onResult:transcript=>{
+      const chamber=parseSpokenChamber(transcript);
+      if(!chamber){
+        setVoiceStatus(`Je n'ai pas reconnu la chambre dans « ${transcript} ». Essaie « S vingt-quatre » ou saisis son code.`);
+        voiceAcknowledge('Chambre non reconnue');return;
+      }
+      voiceAcknowledge(`Chambre ${chamberCode(chamber.blockId,chamber.n)}`);
+      openChamberByCode(chamberCode(chamber.blockId,chamber.n));
+    }
+  });
+}
+
 function tomorrowISO(){
   const d=new Date(); d.setDate(d.getDate()+1);
   return d.toISOString().slice(0,10);
@@ -1814,8 +1948,7 @@ function startRecognition({onResult,onError,prompt='Parle maintenant…'}={}){
 }
 function startVoiceAssistant(){
   if(!tourState?.chambers?.length || tourState.index>=tourState.chambers.length){
-    setVoiceStatus("Lance d'abord une tournée : les commandes vocales agissent sur la chambre affichée.");
-    voiceAcknowledge("Lance une tournée");
+    startChamberVoiceNavigation();
     return;
   }
   startRecognition({
@@ -1826,6 +1959,12 @@ function startVoiceAssistant(){
 function handleTourVoiceCommand(transcript){
   const t=normalizeVoiceText(transcript);
   if(!t) return;
+  const destination=parseSpokenChamber(transcript);
+  if(destination){
+    voiceAcknowledge(`Chambre ${chamberCode(destination.blockId,destination.n)}`);
+    openChamberByCode(chamberCode(destination.blockId,destination.n));
+    return;
+  }
 
   if(/^(ras|r a s|rien a signaler|rien signaler)$/.test(t) || t.includes('rien a signaler')){
     voiceAcknowledge('RAS enregistré');
@@ -2223,7 +2362,9 @@ function resetHarvestFilters(){
 }
 function setHarvestView(v){harvestView=v;['timeline','variety','chamber','month'].forEach(x=>getEl(`harvestTab_${x}`)?.classList.toggle('active',x===v));renderHarvestAnalytics()}
 function culturePlantReference(cultureId,arr=[]){
-  const c=db.cultures.find(x=>x.id===cultureId); if(c?.qty)return Number(c.qty||0);
+  const c=db.cultures.find(x=>x.id===cultureId);
+  if(c?.harvestReferenceQty)return Number(c.harvestReferenceQty||0);
+  if(c?.qty)return Number(c.qty||0);
   return Math.max(0,...arr.filter(h=>h.cultureId===cultureId).map(h=>Number(h.plantCount||0)));
 }
 function varietyYieldKgPerPlant(varietyId,arr){
