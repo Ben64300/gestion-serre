@@ -1,3 +1,37 @@
+GESTION SERRE — V22 : INVENTAIRE VIVANT ET POINTAGE DES PLANTS
+===========================================================
+
+CE QUI CHANGE
+- Accueil : nombre global de plants présents dans les systèmes, avec accès au pointage.
+- Serre & cultures : inventaire de tous les plants actifs, classés par espèce et variété.
+- Exemple : total de laitues, détail Suzanne / Merveille d’hiver, chou-rave Azure Star, chou frisé rouge.
+- Agrégation sur tous les GrowStream et toutes les chambres, même pour plusieurs lots de la même variété.
+- Les plants en attente et les cultures terminées ne sont pas comptés comme « présents ».
+- Tout ajout, retrait, déplacement de culture ou changement de statut actualise les totaux automatiquement.
+- Pointer / Corriger : compte réel de chaque chambre, ajustable sans saisir un total isolé incohérent.
+- Contrôle de la capacité physique des chambres avant toute correction.
+- Filtres système, espèce/variété, semaine, année ou plage de dates de mise en système.
+  IMPORTANT : un filtre de date sélectionne les lots actifs plantés pendant la période ;
+  il ne reconstitue PAS l’inventaire à une date passée.
+- Export CSV de l’inventaire affiché.
+- Toutes les nouveautés V21 et précédentes sont conservées.
+
+INSTALLATION SUR LES DEUX TÉLÉPHONES
+1. Sur chaque téléphone, attendez la mention « Synchronisé », puis créez une sauvegarde complète dans Outils.
+2. Remplacez les CINQ fichiers du dépôt GitHub Pages : index.html, sw.js, manifest.json,
+   README.txt, qr-chambres.pdf. Ne remplacez pas uniquement le HTML.
+3. Faites relancer l’application aux deux personnes avec la connexion disponible.
+4. Vérifiez « V22 » dans Outils et comparez le premier total avec le comptage réel.
+5. Contrôlez une variété dans plusieurs chambres, corrigez une chambre, puis vérifiez
+   le nouveau total sur chaque téléphone après synchronisation.
+6. En cas d’écart de données entre téléphones, n’effectuez pas simultanément deux corrections
+   hors ligne sur le même lot : la dernière modification synchronisée peut remplacer l’autre.
+
+PRÉCISION
+La saisie d’une récolte (poids, bottes ou pièces) n’indique pas nécessairement
+que le plant entier est retiré. Pour décrémenter l’inventaire, utilisez « Retirer des plants »,
+« Terminer la culture » ou « Pointer / Corriger » selon la situation.
+
 GESTION SERRE — V21 UNIFIÉE (V20 + V21 + V22 regroupées)
 =============================================
 

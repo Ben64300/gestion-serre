@@ -1,4 +1,4 @@
-const CACHE='gestion-serre-v21-unifiee-2';
+const CACHE='gestion-serre-v22-comptage-1';
 const ASSETS=['./','./index.html','./manifest.json','./README.txt','./qr-chambres.pdf'];
 
 self.addEventListener('install',event=>{

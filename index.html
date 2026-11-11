@@ -113,6 +113,17 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 @media(max-width:520px){header .row{align-items:flex-start}.syncBadge{font-size:11px}}
 
 
+/* V22 : pointage physique des cultures actives */
+.inventoryGroup{border:1px solid var(--border);border-radius:11px;margin:9px 0;padding:0 11px;background:#fcfdfc}
+.inventoryGroup>summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 2px}
+.inventoryCount{white-space:nowrap;font-size:12px;background:#e2efe6;color:#285943;border-radius:30px;padding:5px 9px;font-weight:800}
+.inventoryLine{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-top:1px solid var(--border)}
+.inventoryLine>div:first-child{min-width:0}.inventoryLine .small{line-height:1.6;overflow-wrap:anywhere}
+.inventoryActions{display:flex;align-items:center;gap:10px;flex:0 0 auto}.inventoryActions strong{font-size:21px;min-width:26px;text-align:right}
+.inventoryActions button{font-size:12px;padding:8px}.inventoryBig{font-size:28px}
+.inventoryEditRow{display:grid;grid-template-columns:1fr 110px;gap:9px;align-items:center;border-top:1px solid var(--border);padding:9px 0}
+.inventoryEditRow input{text-align:center;font-weight:bold}
+@media(max-width:420px){.inventoryLine{align-items:flex-start;flex-direction:column}.inventoryActions{align-self:flex-end}}
 /* V15 : terrain, récoltes, QR et mise à jour */
 .fab{position:fixed;right:18px;bottom:92px;z-index:15;width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;padding:0;box-shadow:0 8px 22px #0004;background:var(--green)}
 .todayHero{background:linear-gradient(135deg,#eaf4ed,#fff);border:1px solid #cfe2d5}
@@ -263,6 +274,10 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
       <button class="secondary" onclick="openWaterReading()">💧 Relever pH / EC</button>
     </div>
   </div>
+  <div class="card">
+    <div class="row"><h3>🌱 Plants actuellement en système</h3><button class="secondary fit" onclick="openInventory()">Voir / Pointer</button></div>
+    <div id="inventoryDashboard"></div>
+  </div>
   <div class="card"><div class="row"><h3>⭐ Mes chambres rapides</h3><button class="secondary fit" onclick="openChamberLookup()">Ouvrir</button></div><div id="quickChambers"></div></div>
   <div class="card"><div class="row"><h3>📝 Demandes clients</h3><button class="secondary fit" onclick="openClientRequest()">＋ Noter</button></div><div id="requestDashboard"></div></div>
   <details class="card v21Panel"><summary>🌱 Récoltes à prévoir · afficher les estimations</summary>
@@ -348,6 +363,25 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
 <section id="cultures">
   <div class="row"><h2>Serre & cultures</h2><button class="fit" onclick="openCulture()">＋ Culture</button></div>
+  <div class="card" id="inventoryCard">
+    <div class="row"><h3>🔢 Inventaire vivant des plants</h3><button class="secondary fit" onclick="exportInventoryCSV()">CSV</button></div>
+    <p class="small muted">Totaux des plants <b>actuellement présents</b> (cultures actives) dans tous les GrowStream. Ajouts, retraits, transferts et fins de culture sont recalculés automatiquement. Les réservations et les cultures terminées sont exclues.</p>
+    <div class="filterGrid">
+      <div class="full"><label>Rechercher une variété ou une espèce</label><input id="inventorySearch" placeholder="Ex. Suzanne, chou-rave, laitue…" oninput="renderInventory()"></div>
+      <div><label>GrowStream</label><select id="inventoryBlock" onchange="renderInventory()"><option value="all">Tous les systèmes</option></select></div>
+      <div><label>Date de mise en système</label><select id="inventoryPeriod" onchange="inventoryPeriodChanged()">
+        <option value="all">Toutes les dates (total réel)</option>
+        <option value="week">Semaine choisie</option><option value="year">Année choisie</option><option value="custom">Période personnalisée</option>
+      </select></div>
+      <div id="inventoryWeekWrap" style="display:none"><label>Semaine</label><input id="inventoryWeek" type="week" onchange="renderInventory()"></div>
+      <div id="inventoryYearWrap" style="display:none"><label>Année</label><input id="inventoryYear" type="number" min="2000" max="2100" step="1" onchange="renderInventory()"></div>
+      <div id="inventoryFromWrap" style="display:none"><label>Du</label><input id="inventoryFrom" type="date" onchange="renderInventory()"></div>
+      <div id="inventoryToWrap" style="display:none"><label>Au</label><input id="inventoryTo" type="date" onchange="renderInventory()"></div>
+    </div>
+    <div id="inventorySummary" style="margin:10px 0"></div>
+    <div id="inventoryList"></div>
+    <p class="small muted">Les filtres de date sélectionnent parmi les plants <b>encore présents</b> ceux mis en système durant la période. Ils ne reconstituent pas le nombre de plants présents à une ancienne date. Sans date de mise en système, un lot n'apparaît pas dans les filtres datés.</p>
+  </div>
   <div class="card">
     <h3>Structure de l'exploitation</h3>
     <p><b>Serre principale</b></p>
@@ -461,7 +495,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V21 unifiée installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V22 · comptage des plants installée.</div>
   </div>
 
   <div class="card">
@@ -479,8 +513,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de la V21 unifiée</h3>
-    <p class="muted">V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
+    <h3>À propos de la V22</h3>
+    <p class="muted">V22 ajoute le pointage automatique des plants présents par espèce et variété, avec correction par chambre. V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
     <p class="small muted">Mets à jour les deux téléphones avant la première synchronisation des nouveautés. La reconnaissance vocale peut nécessiter la 4G. Les photos sont volontairement limitées.</p>
   </div>
 </section>
@@ -538,7 +572,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 21;
+const APP_VERSION = 22;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -1193,9 +1227,193 @@ function chamberHistoryItems(blockId,n){
     .sort((a,b)=>String(b.endDate||'').localeCompare(String(a.endDate||'')));
 }
 
+
+// ---------- V22. COMPTAGE VIVANT PAR VARIÉTÉ ----------
+// Source de vérité : les allocations des lots ACTIFS. Aucun compteur parallèle
+// à synchroniser, afin que les mouvements entre chambres ne doublent jamais les plants.
+let inventoryCorrectionRows=[];
+function inventorySpecies(v){
+  const raw=String(v?.species||v?.name||'Espèce non précisée').trim();
+  const normalized=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr');
+  if(/laitue|salade/.test(normalized)) return 'Laitues / salades';
+  if(/chou[ -]?rave/.test(normalized)) return 'Choux-raves';
+  if(/chou[ -]?(frise|kale)/.test(normalized)) return 'Choux frisés / kales';
+  if(/pak[ -]?(choi|choy)/.test(normalized)) return 'Pak choï';
+  return raw || 'Espèce non précisée';
+}
+function inventoryDateMatches(c){
+  const period=getEl('inventoryPeriod')?.value||'all';
+  if(period==='all')return true;
+  const date=String(c.planting||'').slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return false;
+  if(period==='year'){
+    const year=getEl('inventoryYear')?.value||String(new Date().getFullYear());
+    return date.slice(0,4)===year;
+  }
+  if(period==='custom'){
+    const from=getEl('inventoryFrom')?.value||'',to=getEl('inventoryTo')?.value||'';
+    return (!from||date>=from)&&(!to||date<=to);
+  }
+  if(period==='week'){
+    const week=getEl('inventoryWeek')?.value||'';
+    const match=week.match(/^(\d{4})-W(\d{2})$/);
+    if(!match)return true; // pas de semaine sélectionnée : total visible
+    const y=Number(match[1]),w=Number(match[2]);
+    if(w<1||w>53)return false;
+    const jan4=new Date(Date.UTC(y,0,4));
+    const monday=new Date(jan4.getTime()-((jan4.getUTCDay()+6)%7)*86400000+(w-1)*7*86400000);
+    const first=monday.toISOString().slice(0,10);
+    const last=new Date(monday.getTime()+6*86400000).toISOString().slice(0,10);
+    return date>=first&&date<=last;
+  }
+  return true;
+}
+function inventoryRows({applyFilters=true}={}){
+  const block=applyFilters?(getEl('inventoryBlock')?.value||'all'):'all';
+  const q=applyFilters?(getEl('inventorySearch')?.value||'').trim().toLocaleLowerCase('fr'):'';
+  const byVariety=new Map();
+  for(const c of db.cultures){
+    if(c.status!=='Active'||(block!=='all'&&c.blockId!==block)||(applyFilters&&!inventoryDateMatches(c)))continue;
+    const v=db.varieties.find(x=>x.id===c.varietyId);
+    const name=v?.name||'Variété non renseignée',species=inventorySpecies(v);
+    const searchable=`${name} ${species} ${v?.species||''}`.toLocaleLowerCase('fr');
+    if(q&&!searchable.includes(q))continue;
+    const qty=allocationsOf(c).reduce((sum,a)=>sum+a.qty,0);
+    if(!qty)continue;
+    const id=String(c.varietyId||'');
+    if(!byVariety.has(id))byVariety.set(id,{id,name,species,qty:0,lots:0,locations:new Map()});
+    const row=byVariety.get(id);row.qty+=qty;row.lots++;
+    for(const a of allocationsOf(c)){
+      const code=chamberCode(c.blockId,a.chamberNumber);
+      row.locations.set(code,(row.locations.get(code)||0)+a.qty);
+    }
+  }
+  return [...byVariety.values()].sort((a,b)=>byText(a.species,b.species)||byText(a.name,b.name));
+}
+function inventoryPeriodChanged(){
+  const period=getEl('inventoryPeriod')?.value||'all';
+  const weekField=getEl('inventoryWeek');
+  if(period==='week'&&weekField&&!weekField.value){
+    const d=new Date(),local=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+    local.setUTCDate(local.getUTCDate()+4-(local.getUTCDay()||7));
+    const year=local.getUTCFullYear();
+    const first=new Date(Date.UTC(year,0,1));
+    const week=Math.ceil((((local-first)/86400000)+1)/7);
+    weekField.value=year+'-W'+String(week).padStart(2,'0');
+  }
+  for(const x of ['Week','Year','From','To']){
+    const visible=(period==='week'&&x==='Week')||(period==='year'&&x==='Year')||(period==='custom'&&(x==='From'||x==='To'));
+    const el=getEl('inventory'+x+'Wrap');if(el)el.style.display=visible?'':'none';
+  }
+  renderInventory();
+}
+function openInventory(){
+  show('cultures');
+  getEl('inventoryCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderInventory(){
+  const block=getEl('inventoryBlock');
+  if(block){
+    const current=block.value||'all';
+    block.innerHTML='<option value="all">Tous les systèmes</option>'+db.blocks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
+    block.value=[...block.options].some(o=>o.value===current)?current:'all';
+  }
+  const year=getEl('inventoryYear');if(year&&!year.value)year.value=String(new Date().getFullYear());
+  const summary=getEl('inventorySummary'),list=getEl('inventoryList');
+  if(!summary||!list)return;
+  const rows=inventoryRows();
+  const qty=rows.reduce((total,r)=>total+r.qty,0);
+  const families=new Map();
+  for(const r of rows){if(!families.has(r.species))families.set(r.species,[]);families.get(r.species).push(r);}
+  summary.innerHTML=`<div class="grid"><div class="card metric" style="margin:0"><b>${qty.toLocaleString('fr-FR')}</b><small>plants actuellement présents${getEl('inventoryPeriod')?.value!=='all'?' · filtre date actif':''}</small></div><div class="card metric" style="margin:0"><b>${rows.length}</b><small>variétés présentes</small></div></div>`;
+  list.innerHTML=rows.length?[...families.entries()].map(([species,items])=>{
+    const total=items.reduce((sum,x)=>sum+x.qty,0);
+    return `<details class="inventoryGroup" open><summary><b>${esc(species)}</b><span class="inventoryCount">${total} plants</span></summary>
+      ${items.map(r=>`<div class="inventoryLine"><div><b>${esc(r.name)}</b><div class="small muted">${r.lots} lot(s) · ${[...r.locations].sort((a,b)=>byText(a[0],b[0])).map(([code,n])=>`${esc(code)} : ${n}`).join(' · ')}</div></div><div class="inventoryActions"><strong>${r.qty}</strong><button class="secondary" onclick="openInventoryCorrection('${esc(r.id)}')">Pointer / Corriger</button></div></div>`).join('')}
+    </details>`;
+  }).join(''):'<div class="empty">Aucun plant actif pour les filtres sélectionnés.</div>';
+  const dash=getEl('inventoryDashboard');
+  if(dash){
+    const all=inventoryRows({applyFilters:false});
+    const total=all.reduce((sum,r)=>sum+r.qty,0);
+    const top=all.sort((a,b)=>b.qty-a.qty).slice(0,4);
+    dash.innerHTML=`<div class="row"><div><b class="inventoryBig">${total.toLocaleString('fr-FR')}</b><div class="small muted">plants présents, toutes variétés · ${all.length} variété(s)</div></div></div>
+      ${top.map(r=>`<div class="item small"><b>${esc(r.name)}</b> · ${r.qty} plants</div>`).join('')}`;
+  }
+}
+// Le pointage modifie les lots/chambres existants : le total est une conséquence,
+// jamais une valeur modifiée séparément du plan physique.
+function openInventoryCorrection(varietyId){
+  const name=varietyName(varietyId);
+  inventoryCorrectionRows=[];
+  for(const c of db.cultures.filter(c=>c.status==='Active'&&c.varietyId===varietyId)){
+    for(const a of allocationsOf(c))inventoryCorrectionRows.push({cultureId:c.id,blockId:c.blockId,chamberNumber:a.chamberNumber,originalQty:a.qty});
+  }
+  inventoryCorrectionRows.sort((a,b)=>byText(chamberCode(a.blockId,a.chamberNumber),chamberCode(b.blockId,b.chamberNumber)));
+  if(!inventoryCorrectionRows.length){alert('Aucun lot actif pour cette variété.');return;}
+  const total=inventoryCorrectionRows.reduce((n,r)=>n+r.originalQty,0);
+  modal(`<h2>🔢 Pointage · ${esc(name)}</h2>
+    <p>Nombre actuel : <b>${total} plants</b>. Renseigne le <b>nombre réellement présent</b> dans chaque chambre. Les autres variétés de la chambre sont préservées.</p>
+    <p class="small muted">Toutes les chambres actives de cette variété sont affichées, sans tenir compte des filtres de date. La valeur 0 retire tous les plants du lot dans cette chambre. Une culture entièrement vide sera terminée.</p>
+    ${inventoryCorrectionRows.map((r,i)=>{
+      const free=chamberRemaining(r.blockId,r.chamberNumber,r.cultureId);
+      const max=r.originalQty+free;
+      return `<div class="inventoryEditRow"><div><b>${esc(chamberCode(r.blockId,r.chamberNumber))}</b><div class="small muted">Actuel : ${r.originalQty} · maximum : ${max}</div></div><input aria-label="Nombre de plants chambre ${esc(chamberCode(r.blockId,r.chamberNumber))}" id="invEdit${i}" type="number" min="0" max="${max}" step="1" value="${r.originalQty}"></div>`;
+    }).join('')}
+    <div class="toolbar" style="margin-top:12px"><button onclick="saveInventoryCorrection()">Enregistrer le pointage</button><button class="secondary" onclick="closeModal()">Annuler</button></div>`);
+}
+function saveInventoryCorrection(){
+  if(!inventoryCorrectionRows.length)return;
+  const changes=inventoryCorrectionRows.map((r,i)=>{const raw=getEl('invEdit'+i)?.value;return {...r,newQty:raw===''?NaN:Number(raw)};});
+  if(changes.some(r=>!Number.isInteger(r.newQty)||r.newQty<0)){
+    alert('Indique un nombre entier de plants, positif ou égal à zéro.');return;
+  }
+  // Valider les capacités de chambres EN TENANT COMPTE des autres lots.
+  const grouped=new Map();
+  for(const r of changes){
+    const key=r.blockId+'|'+r.chamberNumber;
+    if(!grouped.has(key))grouped.set(key,[]);
+    grouped.get(key).push(r);
+  }
+  for(const group of grouped.values()){
+    const {blockId,chamberNumber}=group[0];
+    const total=physicalUsed(blockId,chamberNumber)+chamberReserved(blockId,chamberNumber)
+      -group.reduce((n,r)=>n+r.originalQty,0)+group.reduce((n,r)=>n+r.newQty,0);
+    if(total>placesPerChamber(blockId)){
+      alert(`${chamberCode(blockId,chamberNumber)} : capacité dépassée (${total}/${placesPerChamber(blockId)} places).`);return;
+    }
+  }
+  if(changes.every(r=>r.newQty===r.originalQty)){closeModal();return;}
+  const touched=new Set();
+  for(const r of changes){
+    const c=db.cultures.find(c=>c.id===r.cultureId);if(!c)continue;
+    const a=c.allocations?.find(a=>Number(a.chamberNumber)===r.chamberNumber);
+    if(!a)continue;
+    if(r.newQty===0&&r.originalQty>0){recordChamberHistory(c,{chamberNumber:r.chamberNumber,qty:r.originalQty},todayISO());}
+    a.qty=r.newQty;
+    touched.add(c.id);
+  }
+  for(const id of touched){
+    const c=db.cultures.find(c=>c.id===id);
+    syncCultureAllocationFields(c);
+    if(!c.qty){c.status='Terminée';c.endDate=todayISO();}
+  }
+  inventoryCorrectionRows=[];
+  closeModal();persist({message:'Pointage des plants enregistré'});
+}
+function exportInventoryCSV(){
+  const rows=inventoryRows();
+  const csv=[['Espèce','Variété','Plants présents','Lots','Chambres'],...rows.map(r=>[r.species,r.name,r.qty,r.lots,[...r.locations].map(([code,n])=>code+' : '+n).join(' / ')])];
+  const body='\ufeff'+csv.map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([body],{type:'text/csv;charset=utf-8'}));
+  a.download=`gestion-serre-inventaire-${todayISO()}.csv`;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+
 // ---------- 7. RENDU GLOBAL / TABLEAU DE BORD ----------
 function renderAll(){
   renderDash();
+  renderInventory();
   renderField();
   renderHarvestSummary();
   renderHarvestAnalytics();
