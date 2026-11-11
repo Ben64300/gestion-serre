@@ -1,3 +1,73 @@
+GESTION SERRE — V21 UNIFIÉE (V20 + V21 + V22 regroupées)
+=============================================
+
+NOUVEAUTÉS V21
+
+1. DEMANDES CLIENTS — SAISIE EN RENDEZ-VOUS
+- Depuis Accueil : « Noter une demande client » ; depuis le bouton + ; ou Ventes.
+- Client, date, statut « À confirmer » ou « Confirmée », produits, quantité et unité.
+- Ajoutez autant de produits que nécessaire, sans créer une vente.
+- Pour chaque produit, le volet « Disponibilité vérifiée » permet (facultativement) de noter la quantité disponible et le manque ; rien n’est inventé si la quantité est inconnue.
+- « Nouvelle demande » à partir d’une fiche reprend le restaurant, les produits et les quantités demandées, mais réinitialise les disponibilités périmées.
+- Bouton micro à côté de chaque ligne : « 1 kilo de persil », « 500 grammes de mizuna », « quatre bottes de cerfeuil ».
+- Exemple « Cabeillou » : préremplit 1 kg persil, 500 g mizuna pourpre et 4 bottes de cerfeuil, MAIS NE L'ENREGISTRE PAS sans validation.
+- Les demandes à confirmer restent distinctes des commandes fermes et des ventes comptabilisées.
+- Les besoins hebdomadaires sont un indicateur de fréquence, sans création automatique de commande.
+
+2. TERRAIN INTELLIGENT
+- Accueil : chambres favorites et cinq dernières chambres ouvertes sur cet appareil.
+- Chaque chambre : Favori, Précédente, Suivante, Replanter, Photo.
+- Replanter : propose une variété déjà présente ou historiquement cultivée dans la chambre ; crée un nouveau lot sans altérer l'ancien.
+- Commande vocale sur Accueil et Terrain : ouverture de chambre, préparation de récolte ou transfert, ouverture de demande client ou relevé bassin.
+- AUCUNE récolte ni déplacement n'est validé automatiquement par la voix : confirmation manuelle indispensable.
+- La tournée vocale V17 et les transferts inter-systèmes V19 restent disponibles.
+
+3. SUIVI BASSIN
+- Saisir date, heure, pH, EC (mS/cm), température de l'eau, eau ajoutée et notes d'engrais.
+- Dernier relevé sur l'Accueil et le Terrain ; historique dans Outils.
+- Alertes visuelles selon des seuils modifiables (valeurs initiales : pH 5,5–6,5 ; EC 1,0–2,0).
+- Alerte aussi si variation de pH d'au moins 0,4 entre deux relevés.
+- Les seuils sont des repères de suivi à adapter aux cultures, pas des recommandations universelles.
+
+4. PHOTOS DE CULTURES
+- Depuis une chambre : « Photo » ouvre l'appareil photo ou la galerie Android.
+- L'image est réduite à 480 px et environ 65 000 caractères pour ménager le stockage et la 4G.
+- Photos, dates et observations sont incluses dans les sauvegardes et les enregistrements partagés.
+- Limite de 25 photos au total pour éviter l'épuisement de la mémoire locale.
+- Galerie consultable dans « Outils » ; supprimer les anciennes photos selon vos besoins.
+
+5. PRÉVISIONS DE RÉCOLTE
+- L'Accueil présente les cultures ayant une date de récolte prévue OU un nombre de jours avant récolte renseigné dans la fiche variété.
+- Un coefficient saisonnier tient compte grossièrement de l'absence de chauffage sous serre.
+- La fenêtre est INDICATIVE et ne remplace pas l'observation et le suivi réel de croissance.
+- Aucune quantité vendable n'est inventée.
+
+6. CONFORT & SÉCURITÉ
+- Date locale utilisée au lieu de la date UTC (évite la veille juste après minuit en France).
+- Aucun nouvel onglet de navigation principale.
+- Les historiques et fonctions V18/V19 restent présents (cultures, récoltes, NFC, QR, stocks, planning, ventes, sauvegardes et synchronisation).
+- Nouvelles catégories de données synchronisées dans la table générique « records » de Supabase : client_request, water_reading, crop_photo. Aucune migration SQL.
+
+IMPORTANT AVANT D'INSTALLER
+==========================
+1. À partir de la V19, sur les deux téléphones, attendez l'indication 🟢 Synchronisé.
+2. Effectuez une sauvegarde complète (Outils > Sauvegardes).
+3. Mettez à jour LES DEUX téléphones (Benoît et Carine) vers la V21 avant de saisir les nouvelles fiches.
+   Ne continuez pas à utiliser V19 sur l'autre téléphone avec les nouvelles données V21 : une ancienne version ne connaît pas les nouvelles catégories et pourrait les effacer lors d'une synchronisation.
+4. Sur GitHub Pages, remplacez ces cinq fichiers : index.html, manifest.json, sw.js, README.txt et qr-chambres.pdf.
+5. Fermez complètement les deux applications, relancez avec Internet et vérifiez la présence de « V21 unifiée » dans Outils.
+6. Testez sur une DEMANDE FICTIVE, puis vérifiez sa synchronisation entre les deux téléphones, et supprimez-la.
+7. Vérifiez également le microphone avec Chrome sur Android. La reconnaissance vocale peut nécessiter une connexion Internet.
+
+LIMITES CONNUES
+- Les favoris, derniers codes ouverts et seuils d'alerte personnalisés sont propres à chaque téléphone (préférences locales).
+- Les images sont partagées sous forme de miniatures compressées, pas en résolution originale ; qualité insuffisante pour une expertise phytosanitaire détaillée.
+- Le mécanisme de synchronisation existant repose sur une file hors ligne. Des modifications simultanées du MÊME enregistrement sur deux téléphones hors ligne peuvent conduire à une écriture ultérieure qui remplace l'autre. Éviter de modifier la même demande sur deux appareils simultanément.
+- Un suivi des commandes ne remplace pas les obligations de devis, bon de livraison ou de facturation.
+- Test des fonctions réalisé sur le code ; la publication GitHub et les essais en condition réelle avec micro, appareil photo et synchronisation doivent être effectués sur les appareils.
+
+HISTORIQUE
+==========
 GESTION SERRE — V19 VOIX & TRANSFERTS
 
 NOUVEAUTÉS V19

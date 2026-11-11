@@ -1,4 +1,4 @@
-const CACHE='gestion-serre-v19-voix-transferts-1';
+const CACHE='gestion-serre-v21-unifiee-2';
 const ASSETS=['./','./index.html','./manifest.json','./README.txt','./qr-chambres.pdf'];
 
 self.addEventListener('install',event=>{

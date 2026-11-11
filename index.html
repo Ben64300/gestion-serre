@@ -198,6 +198,27 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 .harvestProd b{font-size:16px}
 @media(max-width:650px){.harvestKpis{grid-template-columns:repeat(2,minmax(0,1fr))}.harvestChartRow{grid-template-columns:100px 1fr auto}}
 
+
+/* V21 unifiée : interfaces sobres, accessibles au pouce. */
+.v21Compact{padding:8px 0;border-top:1px solid var(--border);line-height:1.5}
+.v21Compact:first-child{border:0}
+.v21Warning{border-left:3px solid #a86711;background:#fff6df;padding:6px 9px;margin-top:7px;font-size:12px;color:#704714;border-radius:5px}
+.v21Panel{padding:12px}.v21Panel summary{font-weight:800;cursor:pointer;margin-bottom:8px}
+.v21RequestCard{padding:12px 0;border-top:1px solid var(--border)}.v21RequestCard:first-child{border:0}
+.requestItem{padding:3px 0 3px 10px;border-left:2px solid #bed8c4;margin:3px 0}
+.requestTag{display:inline-block;border-radius:8px;padding:3px 6px;font-size:11px;color:#795718;background:#fbefd1}
+.requestTag.confirmed{color:#206342;background:#ddf1e4}
+.requestLine{display:grid;grid-template-columns:minmax(0,2.5fr) minmax(70px,1fr) minmax(95px,1fr) auto;gap:6px;align-items:end;padding:8px 0;border-top:1px solid var(--border)}
+.requestLine input,.requestLine select{width:100%;min-width:0}
+.requestRowActions{display:flex;gap:3px}.requestRowActions button{padding:10px 8px}
+.requestAvailability{grid-column:1/-1}.requestAvailability details{background:#f6f9f7;border-radius:8px;padding:7px 10px}
+.requestAvailability summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:700}
+.requestAvailability input{max-width:200px}.requestAvailable{color:#2d6947}.requestMissing{color:#a05220;font-weight:700}
+.v21PhotoRow{display:flex;gap:8px;overflow-x:auto;padding:8px 0;flex-wrap:wrap}
+.v21PhotoRow button{display:flex;flex-direction:column;gap:5px;align-items:center;max-width:145px}
+.v21Thumb{height:92px;width:125px;object-fit:cover;border-radius:8px}
+.v21PhotoFull{display:block;max-width:100%;max-height:65vh;margin:auto;border-radius:12px}
+@media(max-width:480px){.requestLine{grid-template-columns:minmax(0,1fr) 85px 96px}.requestLine .requestMain{grid-column:1/-1}.requestRowActions{grid-column:1/-1;justify-content:flex-end}.v21PhotoRow{flex-wrap:nowrap}}
 </style>
 </head>
 <body>
@@ -223,8 +244,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <p class="small muted">Retrouve immédiatement une chambre, une variété, une culture, une tâche, un stock ou une récolte.</p>
     <div class="searchBox"><input id="globalSearch" placeholder="ex. L17, Pak choï, Copper Currant, engrais…" oninput="renderUniversalSearch()"></div>
     <div class="toolbar" style="margin-top:9px">
-      <button id="dashboardVoiceBtn" class="secondary voiceBtn" type="button" onclick="startChamberVoiceNavigation()">🎙️ Ouvrir à la voix</button>
-      <span class="small muted">Dis « Ouvre S24 » ou « L quinze ».</span>
+      <button id="dashboardVoiceBtn" class="secondary voiceBtn" type="button" onclick="startSmartVoice()">🎙️ Assistant vocal</button>
+      <span class="small muted">Dis « S24 », « récolte 350 grammes S24 », « demande client »…</span>
     </div>
     <div id="dashboardVoiceStatus" class="voiceTranscript" role="status" aria-live="polite">Appuie sur le micro et annonce le code d'une chambre.</div>
     <div id="globalSearchResults" class="searchResults"></div>
@@ -238,8 +259,17 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
       <button class="secondary" onclick="openQRScanner()">▣ Scanner une chambre</button>
       <button class="secondary" onclick="openCulture()">＋ Nouvelle culture</button>
       <button class="secondary" onclick="openReservation()">🟨 Réserver une chambre</button>
+      <button onclick="openClientRequest()">📝 Noter une demande client</button>
+      <button class="secondary" onclick="openWaterReading()">💧 Relever pH / EC</button>
     </div>
   </div>
+  <div class="card"><div class="row"><h3>⭐ Mes chambres rapides</h3><button class="secondary fit" onclick="openChamberLookup()">Ouvrir</button></div><div id="quickChambers"></div></div>
+  <div class="card"><div class="row"><h3>📝 Demandes clients</h3><button class="secondary fit" onclick="openClientRequest()">＋ Noter</button></div><div id="requestDashboard"></div></div>
+  <details class="card v21Panel"><summary>🌱 Récoltes à prévoir · afficher les estimations</summary>
+    <div class="toolbar" style="margin-top:8px"><button class="secondary fit" onclick="show('cultures')">Voir les cultures</button></div>
+    <div id="forecastDashboard"></div>
+  </details>
+  <div class="card"><div class="row"><h3>💧 Bassin</h3><button class="secondary fit" onclick="openWaterReading()">＋ Relevé</button></div><div id="waterDashboard"></div></div>
   <div class="card"><div class="row"><h3>Récoltes</h3><button class="secondary fit" onclick="show('harvests')">Analyser</button></div><div id="harvestSummary"></div></div>
   <div class="card"><h3>Occupation des GrowStream</h3><div id="occupancySummary"></div></div>
   <div class="card">
@@ -266,12 +296,13 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <div class="fieldActions">
       <button onclick="openQRScanner()">▣ Scanner QR</button>
       <button class="secondary" onclick="openChamberLookup()">🔎 Ouvrir une chambre</button>
-      <button class="secondary" onclick="startChamberVoiceNavigation()">🎙️ Ouvrir à la voix</button>
+      <button class="secondary" onclick="startSmartVoice()">🎙️ Assistant vocal</button>
       <button class="secondary" onclick="openHarvest()">⚖ Récolte</button>
       <button class="secondary" onclick="window.open('./qr-chambres.pdf','_blank')">🖨 QR à imprimer</button>
     </div>
     <p class="small muted">Les QR L01 à L56 et S01 à S60 ouvrent directement la chambre correspondante. Le scan fonctionne aussi hors ligne si le navigateur prend en charge la détection QR.</p>
   </div>
+  <div class="card"><div class="row"><h3>💧 Journal du bassin</h3><button class="secondary fit" onclick="openWaterReading()">＋ Relevé</button></div><div id="waterField"></div></div>
   <div class="card"><h3>Récoltes récentes</h3><div id="harvestList"></div></div>
   <div class="card"><h3>Dernières observations de tournée</h3><div id="inspectionList"></div></div>
 </section>
@@ -376,6 +407,11 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   <div class="toolbar">
     <button class="secondary" onclick="openCost()">＋ Ajouter un coût</button>
   </div>
+  <div class="card"><div class="row"><h3>📝 Demandes & commandes des chefs</h3><button class="fit" onclick="openClientRequest()">＋ Demande</button></div>
+    <p class="small muted">Une demande à confirmer n’est pas une commande ferme ni une vente. Tu peux dicter les produits, les quantités et les unités.</p>
+    <div class="toolbar"><label class="small">Filtrer : <select id="requestFilter" onchange="renderClientRequests()"><option value="active">En cours</option><option value="all">Toutes</option><option value="confirmee">Confirmées</option></select></label></div>
+    <div id="requestList"></div>
+  </div>
   <div id="salesList"></div>
   <div id="costList"></div>
 </section>
@@ -405,6 +441,14 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <div id="varietyList"></div>
   </div>
 
+  <details class="card v21Panel"><summary>💧 Historique de nutrition et alertes</summary>
+    <div class="toolbar"><button onclick="openWaterReading()">＋ Saisir un relevé</button><button class="secondary" onclick="openWaterThresholds()">Seuils</button></div>
+    <div id="waterHistory"></div>
+  </details>
+  <details class="card v21Panel"><summary>📷 Galerie des cultures</summary>
+    <p class="small muted">Photos compressées et partagées dans les données de l'application. Maximum 25 photos, pour préserver la 4G et l’espace disponible.</p>
+    <div id="photoGallery"></div>
+  </details>
   <div class="card" id="syncPanel">
     <div class="row"><h3>Partage & synchronisation</h3><button class="secondary fit" onclick="manualSync()">↻ Synchroniser</button></div>
     <div id="syncPanelContent" class="muted">Connexion en cours…</div>
@@ -417,7 +461,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V19 installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V21 unifiée installée.</div>
   </div>
 
   <div class="card">
@@ -435,8 +479,9 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de la V19 · Voix & transferts</h3>
-    <p class="muted">V19 ajoute l'ouverture vocale directe des 116 chambres et le transfert de plants entre les GrowStream L et S, complet ou partiel, avec vérification des places et historique. Les récoltes V18 et toutes les fonctions précédentes sont conservées.</p>
+    <h3>À propos de la V21 unifiée</h3>
+    <p class="muted">V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
+    <p class="small muted">Mets à jour les deux téléphones avant la première synchronisation des nouveautés. La reconnaissance vocale peut nécessiter la 4G. Les photos sont volontairement limitées.</p>
   </div>
 </section>
 </main>
@@ -477,7 +522,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 'use strict';
 
 /* =========================================================
-   GESTION SERRE — V19 NAVIGATION VOCALE & TRANSFERTS
+   GESTION SERRE — V21 UNIFIÉE · TERRAIN, SUIVI & CLIENTS
    Base propre pour les évolutions futures.
    Sections :
    1. Configuration / données
@@ -493,7 +538,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 19;
+const APP_VERSION = 21;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -621,7 +666,10 @@ const SEED = {
   ],
   stockMovements:[],
   sales:[],
-  costs:[]
+  costs:[],
+  clientRequests:[],
+  waterReadings:[],
+  cropPhotos:[]
 };
 
 let db = null;
@@ -641,7 +689,10 @@ function fmt(date){
   const d = new Date(date + 'T12:00:00');
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR');
 }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+function localISODate(d=new Date()){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function todayISO(){ return localISODate(); }
 function byText(a,b){ return String(a||'').localeCompare(String(b||''),'fr',{sensitivity:'base'}); }
 function getEl(id){ return document.getElementById(id); }
 function varietyName(id){ return db.varieties.find(v=>v.id===id)?.name || '—'; }
@@ -778,6 +829,11 @@ function migrateData(raw){
     return item;
   });
   x.inspections = Array.isArray(x.inspections) ? x.inspections : [];
+  x.clientRequests = Array.isArray(x.clientRequests) ? x.clientRequests : [];
+  x.clientRequests = x.clientRequests.map(r=>Object.assign({id:uid('req'),customer:'',date:'',neededBy:'',status:'a_confirmer',recurrence:'une_fois',notes:'',items:[]},r));
+  x.waterReadings = Array.isArray(x.waterReadings) ? x.waterReadings : [];
+  x.cropPhotos = Array.isArray(x.cropPhotos) ? x.cropPhotos : [];
+
 
   db=x; // nécessaire pour blockById pendant la migration des cultures
   x.cultures=x.cultures.map(migrateCulture);
@@ -1156,6 +1212,7 @@ function renderAll(){
   renderBackupPanel();
   renderUniversalSearch();
   renderDailyJournal();
+  renderV21();
   updateVoiceUI();
   updateSaveIndicator();
   updateSyncIndicator();
@@ -1360,7 +1417,8 @@ function openChamber(blockId,n){
       </div>`).join('')}
     </details>` : '';
 
-  modal(`<h2>${code}</h2>
+  rememberChamber(code);
+  modal(`<div class="row"><h2>${code}</h2><button class="fit secondary" onclick="toggleFavorite('${code}')">${isFavorite(code)?'★ Favori':'☆ Favori'}</button></div>
     <div class="chamberSummary">
       <div><b>${state.used}</b><span class="small">plantés</span></div>
       <div><b>${state.reserved}</b><span class="small">réservés</span></div>
@@ -1371,7 +1429,11 @@ function openChamber(blockId,n){
     <div class="actionGrid">
       <button onclick="addPlantsToChamber('${blockId}',${n},false)">＋ Ajouter des plants</button>
       <button class="secondary" onclick="addPlantsToChamber('${blockId}',${n},true)">🟨 Réserver</button>
+      <button class="secondary" onclick="openReplant('${blockId}',${n})">↺ Replanter</button>
+      <button class="secondary" onclick="openChamberPhoto('${blockId}',${n})">📷 Photo</button>
     </div>
+    <div class="toolbar" style="margin-top:10px"><button class="secondary fit" onclick="openAdjacentChamber('${blockId}',${n},-1)">← Précédente</button><button class="secondary fit" onclick="openAdjacentChamber('${blockId}',${n},1)">Suivante →</button></div>
+    <div id="chamberPhotoPreview">${renderChamberPhotoPreview(blockId,n)}</div>
     ${hist}
     <button class="secondary" style="width:100%;margin-top:10px" onclick="closeModal()">Fermer</button>`);
 }
@@ -1822,7 +1884,7 @@ function updateVoiceUI(){
   buttons.forEach(btn=>{
     btn.disabled=!voiceSupported();
     btn.classList.toggle('listening',voiceListening);
-    btn.textContent=voiceListening?'🔴 J’écoute…':(btn.id==='dashboardVoiceBtn'?'🎙️ Ouvrir à la voix':'🎙️ Écouter');
+    btn.textContent=voiceListening?'🔴 J’écoute…':(btn.id==='dashboardVoiceBtn'?'🎙️ Assistant vocal':'🎙️ Écouter');
   });
   if(!voiceSupported()) setVoiceStatus("La reconnaissance vocale n'est pas disponible dans ce navigateur. Les boutons tactiles restent entièrement fonctionnels.");
 }
@@ -1886,11 +1948,11 @@ function startChamberVoiceNavigation(){
 }
 
 function tomorrowISO(){
-  const d=new Date(); d.setDate(d.getDate()+1);
-  return d.toISOString().slice(0,10);
+  const d=new Date();d.setDate(d.getDate()+1);return localISODate(d);
 }
 function parseVoiceHarvest(text){
-  const raw=normalizeVoiceText(text);
+  const raw=String(text||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/(\d+),(\d+)/g,'$1.$2').replace(/[;:!?]/g,' ').replace(/\s+/g,' ').trim();
   let unit='kg', qty=0;
   let m=raw.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilo|kilos|kilogramme|kilogrammes)\b/);
   if(m){
@@ -2188,6 +2250,8 @@ function openQuickMenu(){
     <button class="secondary" onclick="openQRScanner()">▣ Scanner QR</button>
     <button class="secondary" onclick="openCulture()">🌱 Culture</button>
     <button class="secondary" onclick="openTask()">📅 Tâche</button>
+    <button onclick="openClientRequest()">📝 Demande client</button>
+    <button class="secondary" onclick="openWaterReading()">💧 pH / EC</button>
     <button class="secondary" onclick="quickStockMove()">📦 Stock</button>
   </div><button class="secondary" style="width:100%" onclick="closeModal()">Fermer</button>`);
 }
@@ -3107,6 +3171,419 @@ function deleteVariety(id){
 }
 
 
+// ---------- V21 UNIFIÉE : TERRAIN INTELLIGENT / SUIVI / CLIENTS ----------
+// Aucune nouvelle vue dans la navigation : Accueil, Terrain, Ventes, Outils.
+const V21_FAVORITES='gestion_serre_v21_favorites';
+const V21_RECENT='gestion_serre_v21_recent_chambers';
+const V21_WATER_LIMITS='gestion_serre_v21_water_limits';
+function jsonPreference(key,fallback){try{const v=JSON.parse(localStorage.getItem(key)||'null');return v??fallback;}catch(_){return fallback;}}
+function favoriteChambers(){return jsonPreference(V21_FAVORITES,[]).filter(x=>parseChamberCode(x));}
+function isFavorite(code){return favoriteChambers().includes(code);}
+function recentChambers(){return jsonPreference(V21_RECENT,[]).filter(x=>parseChamberCode(x));}
+function rememberChamber(code){
+  localStorage.setItem(V21_RECENT,JSON.stringify([code,...recentChambers().filter(x=>x!==code)].slice(0,5)));
+  renderQuickChambers();
+}
+function toggleFavorite(code){
+  const current=favoriteChambers();
+  const next=current.includes(code)?current.filter(x=>x!==code):[...current,code].slice(-8);
+  localStorage.setItem(V21_FAVORITES,JSON.stringify(next));
+  const c=parseChamberCode(code);if(c)openChamber(c.blockId,c.n);
+}
+function openAdjacentChamber(blockId,n,delta){
+  const block=blockById(blockId),next=Number(n)+delta;
+  if(!block||next<1||next>Number(block.chambers||0))return;
+  openChamber(blockId,next);
+}
+function renderQuickChambers(){
+  const host=getEl('quickChambers');if(!host)return;
+  const favorites=favoriteChambers(),recent=recentChambers();
+  const codes=[...new Set([...favorites,...recent])].slice(0,10);
+  host.innerHTML=codes.length?`<div class="toolbar">${codes.map(code=>`<button class="secondary fit" onclick="openChamberByCode('${code}')">${favorites.includes(code)?'★ ':''}${esc(code)}</button>`).join('')}</div><div class="small muted" style="margin-top:6px">★ favoris · 5 dernières chambres consultées (sur ce téléphone)</div>`:
+    '<div class="small muted">Ouvre une chambre puis utilise ☆ Favori pour la retrouver ici.</div>';
+}
+
+// Replanter : crée un nouveau lot sans écraser les cultures ni les récoltes antérieures.
+function replantSuggestions(blockId,n){
+  const list=[];
+  chamberOccupants(blockId,n).forEach(({culture})=>list.push(culture.varietyId));
+  chamberHistoryItems(blockId,n).forEach(h=>list.push(h.varietyId));
+  return [...new Set(list.filter(id=>db.varieties.some(v=>v.id===id)))];
+}
+function openReplant(blockId,n){
+  const free=chamberRemaining(blockId,n);
+  if(free<=0){alert(`${chamberCode(blockId,n)} est pleine. Libère des places avant de replanter.`);return;}
+  const hints=replantSuggestions(blockId,n),selected=hints[0]||'';
+  modal(`<h2>↺ Replanter · ${chamberCode(blockId,n)}</h2>
+    <p class="small muted">Créer un nouveau lot dans cette chambre, sans modifier l'historique du lot précédent.</p>
+    <label>Variété</label><select id="replantVar">${varietyOptions(selected)}</select>
+    <label>Nombre de plants (max. ${free})</label><input id="replantQty" type="number" min="1" max="${free}" step="1" value="${free}">
+    <label>Date de mise en système</label><input id="replantDate" type="date" value="${todayISO()}">
+    <label>Observation</label><textarea id="replantNote" placeholder="Facultatif"></textarea>
+    <br><button onclick="saveReplant('${blockId}',${n})">Créer le nouveau lot</button>
+    <button class="secondary" onclick="openChamber('${blockId}',${n})">Annuler</button>`);
+}
+function saveReplant(blockId,n){
+  const free=chamberRemaining(blockId,n),q=Number(getEl('replantQty')?.value),varietyId=getEl('replantVar')?.value;
+  if(!varietyId || !Number.isInteger(q) || q<1 || q>free){alert('Vérifie la variété et les places libres.');return;}
+  const item={id:uid('c'),varietyId,blockId,system:blockById(blockId)?.system||'',qty:q,
+    allocations:[{chamberNumber:Number(n),qty:q}],chamberNumbers:[Number(n)],chambers:String(n),
+    sowing:'',planting:getEl('replantDate').value||todayISO(),harvest:'',endDate:'',status:'Active',
+    notes:getEl('replantNote').value.trim()};
+  db.cultures.push(item);persist({message:`${q} plants replantés en ${chamberCode(blockId,n)}`});
+  openChamber(blockId,n);
+}
+
+// Prévisions : on utilise exclusivement les jours renseignés sur la variété,
+// ou une date de récolte explicitement saisie. Les estimations restent indicatives.
+function addDays(iso,n){const d=new Date(`${iso}T12:00:00`);d.setDate(d.getDate()+Number(n));return localISODate(d);}
+function cropForecast(c){
+  if(c.status!=='Active')return null;
+  const v=db.varieties.find(x=>x.id===c.varietyId);
+  if(c.harvest) return {from:c.harvest,to:c.harvest,source:'Date prévue saisie'};
+  const days=Number(v?.harvestDays||0);
+  if(!c.planting||!Number.isFinite(days)||days<=0)return null;
+  const m=Number(String(c.planting).slice(5,7));
+  const factor=[11,12,1,2].includes(m)?1.5:[3,10].includes(m)?1.3:1.15;
+  const central=Math.ceil(days*factor);
+  return {from:addDays(c.planting,Math.max(1,central-7)),to:addDays(c.planting,central+10),source:'Estimation non chauffée'};
+}
+function renderForecasts(){
+  const el=getEl('forecastDashboard');if(!el)return;
+  const rows=db.cultures.map(c=>({c,range:cropForecast(c)})).filter(x=>x.range)
+    .sort((a,b)=>a.range.from.localeCompare(b.range.from)).slice(0,6);
+  el.innerHTML=rows.length?rows.map(({c,range})=>`<div class="v21Compact">
+    <b>${esc(varietyName(c.varietyId))}</b> <span class="small muted">${esc(allocationsOf(c).map(a=>chamberCode(c.blockId,a.chamberNumber)).join(', '))}</span><br>
+    <span class="small">${fmt(range.from)}${range.to!==range.from?' – '+fmt(range.to):''}</span><span class="small muted"> · ${esc(range.source)}</span>
+  </div>`).join('')+'<div class="small muted" style="margin-top:8px">Fenêtres indicatives : à adapter au climat réel, pas une garantie de récolte.</div>':
+  '<div class="small muted">Renseigne « Jours avant récolte » dans tes fiches variétés, ou une date prévue sur une culture.</div>';
+}
+
+// Demandes de restaurateurs. Demande ≠ commande confirmée ≠ vente.
+const REQUEST_STATUSES={a_confirmer:'À confirmer',confirmee:'Confirmée',livree:'Livrée / clôturée',annulee:'Annulée'};
+function requestStatusOptions(selected='a_confirmer'){
+  return Object.entries(REQUEST_STATUSES).map(([key,value])=>`<option value="${key}" ${key===selected?'selected':''}>${value}</option>`).join('');
+}
+function requestRowHtml(item={}){
+  const units=['kg','g','botte','pièce','barquette'];
+  return `<div class="requestLine">
+    <div class="requestMain"><label>Produit / variété</label><input class="rProduct" value="${esc(item.product||'')}" placeholder="Persil, mizuna pourpre, cerfeuil…"></div>
+    <div><label>Quantité</label><input type="number" class="rQty" min="0.001" step="any" inputmode="decimal" value="${esc(item.qty??'')}"></div>
+    <div><label>Unité</label><select class="rUnit">${units.map(u=>`<option value="${u}" ${u===(item.unit||'kg')?'selected':''}>${u}</option>`).join('')}</select></div>
+    <div class="requestRowActions"><button class="secondary fit" onclick="dictateRequestLine(this)" title="Dicter cette ligne">🎙️</button><button class="danger fit" onclick="this.closest('.requestLine').remove()" title="Enlever">×</button></div>
+    <div class="requestAvailability"><details ${item.availableQty!=null?'open':''}><summary>Disponibilité vérifiée (facultatif)</summary>
+      <label>Quantité réellement disponible dans la même unité que la demande (laisser vide si inconnue)</label>
+      <input class="rAvailable" type="number" inputmode="decimal" min="0" step="any" value="${esc(item.availableQty??'')}" placeholder="À vérifier">
+    </details></div>
+  </div>`;
+}
+function addRequestLine(item={}){getEl('requestItems')?.insertAdjacentHTML('beforeend',requestRowHtml(item));}
+function fillCabeillouExample(){
+  getEl('requestCustomer').value='Cabeillou';
+  getEl('requestStatus').value='a_confirmer';
+  getEl('requestRecurrence').value='hebdomadaire';
+  getEl('requestItems').innerHTML='';
+  [{product:'Persil',qty:1,unit:'kg'},{product:'Mizuna pourpre',qty:500,unit:'g'},
+   {product:'Cerfeuil',qty:4,unit:'botte'}].forEach(addRequestLine);
+  getEl('requestNote').value='Exemple préparé : besoins à confirmer avec le chef avant tout engagement.';
+}
+function requestCustomers(){return [...new Set(db.clientRequests.map(x=>x.customer).filter(Boolean))].sort(byText);}
+function openClientRequest(editId='',prefillCustomer=''){
+  const r=editId?db.clientRequests.find(x=>x.id===editId):null;
+  modal(`<h2>📝 ${r?'Modifier la demande':'Noter une demande client'}</h2>
+    <p class="small muted">Saisie rapide pendant un rendez-vous. Rien n'est considéré comme commandé tant que le statut n'est pas « Confirmée ». La disponibilité peut rester inconnue, sans bloquer la saisie.</p>
+    <div class="row"><div><label>Client / restaurant *</label><input id="requestCustomer" list="clientsKnown" value="${esc(r?.customer||prefillCustomer)}" placeholder="Nom du restaurant"></div>
+    <div><label>Date</label><input id="requestDate" type="date" value="${esc(r?.date||todayISO())}"></div></div>
+    <datalist id="clientsKnown"><option value="Cabeillou"></option>${requestCustomers().filter(x=>x!=='Cabeillou').map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist>
+    <div class="row"><div><label>Statut</label><select id="requestStatus">${requestStatusOptions(r?.status||'a_confirmer')}</select></div>
+    <div><label>Besoin</label><select id="requestRecurrence"><option value="une_fois" ${r?.recurrence!=='hebdomadaire'?'selected':''}>Ponctuel</option><option value="hebdomadaire" ${r?.recurrence==='hebdomadaire'?'selected':''}>Chaque semaine (envisagé)</option></select></div></div>
+    <label>Livraison / retour attendu (facultatif)</label><input id="requestNeededBy" type="date" value="${esc(r?.neededBy||'')}">
+    <h3 style="margin-bottom:2px">Produits demandés</h3><div id="requestItems">${(r?.items?.length?r.items:[{},{}]).map(requestRowHtml).join('')}</div>
+    <div class="toolbar"><button class="secondary" onclick="addRequestLine()">＋ Produit</button>${!r?'<button class="secondary" onclick="fillCabeillouExample()">Préparer l’exemple Cabeillou</button>':''}</div>
+    <label>Note / précision</label><textarea id="requestNote" placeholder="Prix discuté, fréquence, conditionnement, rappel…">${esc(r?.notes||'')}</textarea>
+    <br><button onclick="saveClientRequest('${editId}')">Enregistrer la demande</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function requestFormLines(){
+  return [...document.querySelectorAll('#requestItems .requestLine')].map(row=>{
+    const availableRaw=row.querySelector('.rAvailable')?.value?.trim()??'';
+    return {product:row.querySelector('.rProduct').value.trim(),qty:Number(row.querySelector('.rQty').value),
+      unit:row.querySelector('.rUnit').value,availableQty:availableRaw===''?null:Number(availableRaw)};
+  }).filter(x=>x.product || x.qty);
+}
+function saveClientRequest(editId=''){
+  const customer=getEl('requestCustomer').value.trim(),items=requestFormLines();
+  if(!customer){alert('Indique le nom du client.');return;}
+  if(!items.length||items.some(x=>!x.product || !Number.isFinite(x.qty)||x.qty<=0 || (x.availableQty!==null&&(!Number.isFinite(x.availableQty)||x.availableQty<0)))){
+    alert('Vérifie les produits, les quantités demandées et les disponibilités (positives ou nulles).');return;
+  }
+  const r=editId?db.clientRequests.find(x=>x.id===editId):null;
+  const data={customer,date:getEl('requestDate').value||todayISO(),neededBy:getEl('requestNeededBy').value,
+    status:getEl('requestStatus').value,recurrence:getEl('requestRecurrence').value,
+    notes:getEl('requestNote').value.trim(),items,updatedAt:new Date().toISOString()};
+  if(r)Object.assign(r,data);else db.clientRequests.push({id:uid('req'),...data,createdAt:new Date().toISOString()});
+  closeModal();persist({message:`Demande ${customer} enregistrée`});
+}
+function duplicateClientRequest(id){
+  const r=db.clientRequests.find(x=>x.id===id);if(!r)return;
+  openClientRequest('',r.customer);
+  getEl('requestRecurrence').value=r.recurrence||'une_fois';
+  getEl('requestItems').innerHTML=(r.items||[]).map(x=>requestRowHtml({...x,availableQty:null})).join('');
+  getEl('requestNote').value='';
+}
+function setClientRequestStatus(id,status){
+  const r=db.clientRequests.find(x=>x.id===id);
+  if(!r||!REQUEST_STATUSES[status])return;
+  if(status==='confirmee'&&!confirm(`Confirmer la commande de ${r.customer} ?`))return;
+  r.status=status;r.updatedAt=new Date().toISOString();persist({message:'Statut de la demande mis à jour'});
+}
+function deleteClientRequest(id){
+  if(!confirm('Supprimer définitivement cette demande client ?'))return;
+  db.clientRequests=db.clientRequests.filter(x=>x.id!==id);persist({message:'Demande supprimée'});
+}
+function requestLineText(x){return `${Number(x.qty||0).toLocaleString('fr-FR')} ${x.unit} ${x.product}`;}
+function requestAvailabilityText(x){
+  if(x.availableQty==null||x.availableQty==='')return 'Disponibilité à vérifier';
+  const asked=Number(x.qty),available=Number(x.availableQty);
+  if(!Number.isFinite(asked)||!Number.isFinite(available))return 'Disponibilité à vérifier';
+  const display=n=>n.toLocaleString('fr-FR',{maximumFractionDigits:3});
+  return available>=asked?`${display(available)} ${x.unit} disponibles (à revérifier)`:
+    `${display(available)} ${x.unit} disponibles · manque ${display(Math.max(0,asked-available))} ${x.unit}`;
+}
+function renderClientRequests(){
+  const host=getEl('requestList');if(!host)return;
+  const filter=getEl('requestFilter')?.value||'active';
+  let rows=[...db.clientRequests].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  if(filter==='active')rows=rows.filter(r=>['a_confirmer','confirmee'].includes(r.status));
+  if(filter==='confirmee')rows=rows.filter(r=>r.status==='confirmee');
+  host.innerHTML=rows.length?rows.map(r=>`<div class="v21RequestCard">
+    <div class="row"><div><b>${esc(r.customer)}</b> <span class="requestTag ${r.status==='confirmee'?'confirmed':''}">${esc(REQUEST_STATUSES[r.status]||'À confirmer')}</span>
+    <div class="small muted">${fmt(r.date)}${r.neededBy?' · besoin '+fmt(r.neededBy):''} · ${r.recurrence==='hebdomadaire'?'Récurrent (à valider)':'Ponctuel'}</div></div>
+    <div class="fit toolbar"><button class="secondary" onclick="openClientRequest('${r.id}')">Modifier</button>${r.status==='a_confirmer'?`<button onclick="setClientRequestStatus('${r.id}','confirmee')">Confirmer</button>`:''}</div></div>
+    ${r.items.map(x=>`<div class="small requestItem">${esc(requestLineText(x))}<br><span class="${x.availableQty!=null&&Number(x.availableQty)<Number(x.qty)?'requestMissing':'requestAvailable'}">${esc(requestAvailabilityText(x))}</span></div>`).join('')}
+    ${r.notes?`<div class="small muted">${esc(r.notes)}</div>`:''}
+    <div class="toolbar" style="margin-top:7px">${r.status==='confirmee'?`<button class="secondary fit" onclick="setClientRequestStatus('${r.id}','livree')">Marquer traitée</button>`:''}
+      ${r.status==='livree'||r.status==='annulee'?`<button class="secondary fit" onclick="setClientRequestStatus('${r.id}','a_confirmer')">Réouvrir</button>`:''}
+      <button class="secondary fit" onclick="duplicateClientRequest('${r.id}')">Nouvelle demande</button>
+      <button class="danger fit" onclick="deleteClientRequest('${r.id}')">Supprimer</button>
+    </div>
+  </div>`).join(''):'<div class="small muted">Aucune demande pour ce filtre.</div>';
+}
+function renderRequestDashboard(){
+  const host=getEl('requestDashboard');if(!host)return;
+  const rows=db.clientRequests.filter(x=>['a_confirmer','confirmee'].includes(x.status));
+  if(!rows.length){host.innerHTML='<div class="small muted">Aucune demande en cours. Tu peux préparer un exemple Cabeillou sans l’enregistrer.</div>';return;}
+  host.innerHTML=rows.slice(-3).reverse().map(r=>`<div class="v21Compact"><b>${esc(r.customer)}</b> · <span class="small">${r.items.length} produit(s)</span> · <span class="small muted">${esc(REQUEST_STATUSES[r.status])}</span></div>`).join('')+
+    `<div class="toolbar"><button class="secondary fit" onclick="show('sales')">Voir les demandes (${rows.length})</button></div>`;
+}
+function wordCountSimple(word){return ({un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10})[word]||0;}
+function parseDictatedRequestLine(text){
+  const clean=String(text||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/(\d+),(\d+)/g,'$1.$2').replace(/[;:!?]/g,' ').replace(/\s+/g,' ').trim()
+    .replace(/\b(kilogrammes|kilogramme|kilos|kilo)\b/g,'kg').replace(/\b(grammes|gramme)\b/g,'g')
+    .replace(/\b(bottes)\b/g,'botte').replace(/\b(pieces)\b/g,'piece').replace(/\b(barquettes)\b/g,'barquette');
+  const m=clean.match(/\b(\d+(?:\s*[.,]\s*\d+)?|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\s*(kg|g|botte|piece|barquette)\s*(?:de |d )?(.+)/);
+  if(!m)return null;
+  const qty=/^\d/.test(m[1])?Number(m[1].replace(/\s+/g,'').replace(',','.')):wordCountSimple(m[1]);
+  const product=(m[3]||'').trim();
+  return qty>0&&product?{qty,unit:m[2]==='piece'?'pièce':m[2],product}:null;
+}
+function dictateRequestLine(button){
+  const row=button.closest('.requestLine');
+  startRecognition({prompt:'Dicte « 1 kilo de persil » ou « 4 bottes de cerfeuil »…',onResult:txt=>{
+    const item=parseDictatedRequestLine(txt);
+    if(!item){alert('Quantité non reconnue. Exemple : « 500 grammes de mizuna ». Tu peux saisir la ligne au clavier.');return;}
+    row.querySelector('.rProduct').value=item.product;
+    row.querySelector('.rQty').value=item.qty;
+    row.querySelector('.rUnit').value=item.unit;
+    voiceAcknowledge('Ligne préparée. Vérifie avant d’enregistrer.');
+  }});
+}
+
+// Relevés de bassin. Valeurs par défaut indicatives ; seuils personnalisables sur l'appareil.
+function waterLimits(){return Object.assign({phLow:5.5,phHigh:6.5,ecLow:1.0,ecHigh:2.0},jsonPreference(V21_WATER_LIMITS,{}));}
+function openWaterThresholds(){
+  const t=waterLimits();
+  modal(`<h2>💧 Mes seuils d'alerte</h2><p class="small muted">Seuils de suivi personnalisables sur cet appareil. Ce ne sont pas des consignes universelles pour toutes tes cultures.</p>
+    <div class="row"><div><label>pH minimum</label><input id="limPhL" type="number" min="0" max="14" step="0.1" value="${t.phLow}"></div><div><label>pH maximum</label><input id="limPhH" type="number" min="0" max="14" step="0.1" value="${t.phHigh}"></div></div>
+    <div class="row"><div><label>EC minimum (mS/cm)</label><input id="limEcL" type="number" min="0" step="0.1" value="${t.ecLow}"></div><div><label>EC maximum (mS/cm)</label><input id="limEcH" type="number" min="0" step="0.1" value="${t.ecHigh}"></div></div>
+    <br><button onclick="saveWaterThresholds()">Enregistrer</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function saveWaterThresholds(){
+  const vals={phLow:Number(getEl('limPhL').value),phHigh:Number(getEl('limPhH').value),ecLow:Number(getEl('limEcL').value),ecHigh:Number(getEl('limEcH').value)};
+  if(Object.values(vals).some(n=>!Number.isFinite(n)) || vals.phLow<0||vals.phHigh>14||vals.ecLow<0||vals.phLow>=vals.phHigh||vals.ecLow>=vals.ecHigh){alert('Vérifie les minima et maxima.');return;}
+  localStorage.setItem(V21_WATER_LIMITS,JSON.stringify(vals));closeModal();renderWaterDashboard();renderWaterHistory();
+}
+function openWaterReading(editId=''){
+  const r=editId?db.waterReadings.find(x=>x.id===editId):null;
+  const now=new Date();const hhmm=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  modal(`<h2>💧 Relevé du bassin</h2>
+    <div class="row"><div><label>Date</label><input id="wDate" type="date" value="${esc(r?.date||todayISO())}"></div><div><label>Heure</label><input id="wTime" type="time" value="${esc(r?.time||hhmm)}"></div></div>
+    <div class="row"><div><label>pH</label><input id="wPh" type="number" inputmode="decimal" min="0" max="14" step="0.01" value="${esc(r?.ph??'')}" placeholder="6,00"></div>
+    <div><label>EC (mS/cm)</label><input id="wEc" type="number" min="0" step="0.01" value="${esc(r?.ec??'')}" placeholder="1,60"></div></div>
+    <div class="row"><div><label>Température eau (°C)</label><input id="wTemp" type="number" step="0.1" value="${esc(r?.temp??'')}"></div><div><label>Volume ajouté (L)</label><input id="wWater" type="number" min="0" step="1" value="${esc(r?.addedWater??'')}"></div></div>
+    <label>Engrais / pH+ / pH− / observation</label><textarea id="wNotes" placeholder="Ex. 0,5 L Micro, 1 L Bloom, pH+…">${esc(r?.notes||'')}</textarea>
+    <p class="small muted">Relevés et apports enregistrés ; alerte visuelle lorsque les seuils sont dépassés.</p>
+    <br><button onclick="saveWaterReading('${editId}')">Enregistrer le relevé</button><button class="secondary" onclick="closeModal()">Annuler</button>`);
+}
+function readOptionalNumber(id){const s=getEl(id)?.value?.trim();return s===''||s==null?null:Number(s);}
+function saveWaterReading(editId=''){
+  const ph=readOptionalNumber('wPh'),ec=readOptionalNumber('wEc'),temp=readOptionalNumber('wTemp'),addedWater=readOptionalNumber('wWater');
+  if([ph,ec,temp,addedWater].some(n=>n!==null&&!Number.isFinite(n))|| (ph!==null&&(ph<0||ph>14)) || (ec!==null&&ec<0)|| (addedWater!==null&&addedWater<0)){
+    alert('Vérifie les valeurs saisies (pH entre 0 et 14, EC et volume positifs).');return;
+  }
+  if(ph===null&&ec===null&&temp===null&&!getEl('wNotes').value.trim()){alert('Saisis au moins une mesure ou une observation.');return;}
+  const r=editId?db.waterReadings.find(x=>x.id===editId):null;
+  const data={date:getEl('wDate').value||todayISO(),time:getEl('wTime').value||'12:00',ph,ec,temp,addedWater,
+    notes:getEl('wNotes').value.trim(),updatedAt:new Date().toISOString()};
+  if(r)Object.assign(r,data);else db.waterReadings.push({id:uid('water'),...data});
+  closeModal();persist({message:'Relevé du bassin enregistré'});
+}
+function deleteWaterReading(id){if(!confirm('Supprimer ce relevé ?'))return;db.waterReadings=db.waterReadings.filter(x=>x.id!==id);persist({message:'Relevé supprimé'});}
+function waterAlerts(r,previous){
+  const t=waterLimits(),alerts=[];
+  if(r.ph!==null&&r.ph!==undefined&&(r.ph<t.phLow||r.ph>t.phHigh))alerts.push(`pH hors seuil (${r.ph})`);
+  if(r.ec!==null&&r.ec!==undefined&&(r.ec<t.ecLow||r.ec>t.ecHigh))alerts.push(`EC hors seuil (${r.ec})`);
+  if(previous&&r.ph!=null&&previous.ph!=null&&Math.abs(r.ph-previous.ph)>=0.4)alerts.push(`variation pH ${Number(r.ph-previous.ph).toFixed(2)}`);
+  return alerts;
+}
+function sortedWaterReadings(){return [...db.waterReadings].sort((a,b)=>`${b.date||''}T${b.time||''}`.localeCompare(`${a.date||''}T${a.time||''}`));}
+function formatReading(r){return `pH ${r.ph==null?'—':Number(r.ph).toLocaleString('fr-FR')} · EC ${r.ec==null?'—':Number(r.ec).toLocaleString('fr-FR')} · ${r.temp==null?'—':Number(r.temp).toLocaleString('fr-FR')+' °C'}`;}
+function renderWaterDashboard(){
+  const latest=sortedWaterReadings(),r=latest[0],prev=latest[1],warnings=r?waterAlerts(r,prev):[];
+  const text=r?`<b>${esc(formatReading(r))}</b><div class="small muted">${fmt(r.date)} à ${esc(r.time||'')}</div>`:
+    '<span class="small muted">Aucun relevé. Pense à suivre le pH et l’EC régulièrement.</span>';
+  const warn=warnings.length?`<div class="v21Warning">⚠ ${esc(warnings.join(' · '))}</div>`:'';
+  ['waterDashboard','waterField'].forEach(id=>{const el=getEl(id);if(el)el.innerHTML=text+warn;});
+}
+function renderWaterHistory(){
+  const host=getEl('waterHistory');if(!host)return;
+  const arr=sortedWaterReadings();
+  host.innerHTML=arr.length?arr.slice(0,25).map((r,i)=>`<div class="v21Compact"><div class="row"><div>
+    <b>${fmt(r.date)} · ${esc(r.time||'')}</b> · ${esc(formatReading(r))}
+    ${r.addedWater!=null?`<div class="small muted">Eau ajoutée : ${Number(r.addedWater)} L</div>`:''}
+    ${r.notes?`<div class="small muted">${esc(r.notes)}</div>`:''}
+    ${waterAlerts(r,arr[i+1]).length?`<div class="v21Warning">⚠ ${esc(waterAlerts(r,arr[i+1]).join(' · '))}</div>`:''}</div>
+    <div class="fit toolbar"><button class="secondary" onclick="openWaterReading('${r.id}')">Modifier</button><button class="danger" onclick="deleteWaterReading('${r.id}')">×</button></div>
+  </div></div>`).join(''):'<div class="small muted">Pas encore de relevés enregistrés.</div>';
+}
+
+// Photos de chambre compressées, enregistrées dans la base synchronisée (limite stricte).
+const V21_MAX_PHOTOS=25;
+function renderChamberPhotoPreview(blockId,n){
+  const latest=[...db.cropPhotos].filter(p=>p.blockId===blockId&&Number(p.chamberNumber)===Number(n))
+    .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,2);
+  return latest.length?`<div class="v21PhotoRow">${latest.map(p=>`<button class="secondary fit" onclick="viewChamberPhoto('${p.id}')"><img class="v21Thumb" src="${esc(p.dataUrl)}" alt="Culture ${chamberCode(blockId,n)}"><span class="small">${fmt(p.date)}</span></button>`).join('')}</div>`:'';
+}
+function openChamberPhoto(blockId,n){
+  modal(`<h2>📷 Photo de ${chamberCode(blockId,n)}</h2>
+    <p class="small muted">La photo est réduite pour les sauvegardes et la synchronisation 4G. Maximum ${V21_MAX_PHOTOS} clichés dans l'application.</p>
+    <label>Prendre une photo / choisir une image</label><input id="photoFile" type="file" accept="image/*" capture="environment">
+    <label>Date</label><input type="date" id="photoDate" value="${todayISO()}">
+    <label>Observation</label><textarea id="photoNote" placeholder="Évolution, altises, aspect…"></textarea>
+    <div id="photoMessage" class="small muted"></div>
+    <br><button id="photoSaveBtn" onclick="saveChamberPhoto('${blockId}',${n})">Enregistrer la photo</button>
+    <button class="secondary" onclick="openChamber('${blockId}',${n})">Retour</button>`);
+}
+function compressPhoto(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(),temp=URL.createObjectURL(file);
+    img.onload=()=>{
+      try{
+        const max=480,scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+        const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+        canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        let quality=0.7,data=canvas.toDataURL('image/jpeg',quality);
+        while(data.length>65000&&quality>0.32){quality-=0.08;data=canvas.toDataURL('image/jpeg',quality);}
+        if(data.length>65000)throw new Error('Photo encore trop grande après compression. Essaie de la recadrer.');
+        resolve(data);
+      }catch(e){reject(e);}finally{URL.revokeObjectURL(temp);}
+    };
+    img.onerror=()=>{URL.revokeObjectURL(temp);reject(new Error('Impossible de lire ce fichier image.'));};
+    img.src=temp;
+  });
+}
+async function saveChamberPhoto(blockId,n){
+  const file=getEl('photoFile')?.files?.[0],status=getEl('photoMessage'),button=getEl('photoSaveBtn');
+  if(!file){alert('Prends ou choisis une photo.');return;}
+  if(db.cropPhotos.length>=V21_MAX_PHOTOS){alert(`Limite de ${V21_MAX_PHOTOS} photos atteinte. Supprime quelques anciennes photos dans Outils > Galerie.`);return;}
+  if(button)button.disabled=true;if(status)status.textContent='Compression en cours…';
+  try{
+    const dataUrl=await compressPhoto(file),item={id:uid('photo'),blockId,chamberNumber:Number(n),date:getEl('photoDate').value||todayISO(),
+      note:getEl('photoNote').value.trim(),dataUrl,createdAt:new Date().toISOString()};
+    if(JSON.stringify(db).length+JSON.stringify(item).length>2800000)throw new Error('Données locales déjà volumineuses. Supprime d’anciennes photos avant de continuer.');
+    db.cropPhotos.push(item);
+    try{persist({message:'Photo enregistrée'});}catch(err){db.cropPhotos=db.cropPhotos.filter(x=>x.id!==item.id);throw err;}
+    openChamber(blockId,n);
+  }catch(e){if(status)status.textContent=e.message||'Erreur de compression.';if(button)button.disabled=false;}
+}
+function viewChamberPhoto(id){
+  const p=db.cropPhotos.find(x=>x.id===id);if(!p)return;
+  modal(`<h2>📷 ${chamberCode(p.blockId,p.chamberNumber)} · ${fmt(p.date)}</h2>
+    <img class="v21PhotoFull" src="${esc(p.dataUrl)}" alt="Photo de culture">
+    ${p.note?`<p>${esc(p.note)}</p>`:''}
+    <div class="toolbar"><button class="danger" onclick="deleteChamberPhoto('${id}')">Supprimer</button><button class="secondary" onclick="openChamber('${p.blockId}',${p.chamberNumber})">Retour</button></div>`);
+}
+function deleteChamberPhoto(id){
+  const p=db.cropPhotos.find(x=>x.id===id);if(!p||!confirm('Supprimer cette photo ?'))return;
+  db.cropPhotos=db.cropPhotos.filter(x=>x.id!==id);persist({message:'Photo supprimée'});openChamber(p.blockId,p.chamberNumber);
+}
+function renderPhotoGallery(){
+  const host=getEl('photoGallery');if(!host)return;
+  const photos=[...db.cropPhotos].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  host.innerHTML=photos.length?`<div class="v21PhotoRow">${photos.map(p=>`<button class="secondary fit" onclick="viewChamberPhoto('${p.id}')"><img class="v21Thumb" src="${esc(p.dataUrl)}" alt="Culture ${chamberCode(p.blockId,p.chamberNumber)}"><span class="small">${chamberCode(p.blockId,p.chamberNumber)} · ${fmt(p.date)}</span></button>`).join('')}</div>`:
+    '<div class="small muted">Pas encore de photos. Ouvre une chambre puis sélectionne 📷 Photo.</div>';
+}
+
+// Assistant rapide : aucune opération destructive n'est validée oralement.
+function startSmartVoice(){
+  startRecognition({prompt:'Dis « S24 », « récolte 350 grammes S24 », « déplace 5 plants de S24 vers L14 », « demande client »…',
+    onResult:handleSmartVoice});
+}
+function handleSmartVoice(transcript){
+  const t=normalizeVoiceText(transcript);
+  const move=t.match(/(?:deplace|deplacer|transfere|transferer)\s+(\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\s+plants?\s+(?:de |depuis )(.+?)\s+vers\s+(.+)/);
+  if(move){
+    const qty=/^\d+$/.test(move[1])?Number(move[1]):wordCountSimple(move[1]);
+    const from=parseSpokenChamber(move[2]),to=parseSpokenChamber(move[3]);
+    if(!from||!to||!qty){setVoiceStatus('Transfert incomplet. Réessaie avec deux codes de chambre et une quantité.');return;}
+    if(from.blockId===to.blockId&&from.n===to.n){setVoiceStatus('La chambre de départ et d’arrivée est identique.');return;}
+    if(chamberRemaining(to.blockId,to.n)<qty){setVoiceStatus(`${chamberCode(to.blockId,to.n)} n’a pas assez de places libres pour ${qty} plants.`);return;}
+    const occ=chamberOccupants(from.blockId,from.n).filter(x=>x.culture.status!=='Terminée'&&Number(x.allocation.qty)>=qty);
+    if(occ.length!==1){openChamber(from.blockId,from.n);alert('Choisis d’abord la culture à transférer dans cette chambre.');return;}
+    openMoveAllocation(occ[0].culture.id,from.n);
+    const block=getEl('moveBlock'),target=getEl('moveTarget'),input=getEl('moveQty');
+    if(block&&target&&input){block.value=to.blockId;refreshMoveTargets(occ[0].culture.id,from.n);target.value=String(to.n);refreshMoveCapacity();input.value=qty;}
+    setVoiceStatus(`Transfert préparé de ${qty} plant(s) : ${chamberCode(from.blockId,from.n)} vers ${chamberCode(to.blockId,to.n)}. Vérifie et confirme.`);
+    return;
+  }
+  if(t.includes('demande client')||t.includes('commande client')||t.startsWith('noter demande')){
+    openClientRequest();setVoiceStatus('Demande client ouverte. Renseigne le restaurant et les produits.');return;
+  }
+  if(t.includes('releve')||t.includes('bassin')||(/\bph\b/.test(t)&&/\bec\b/.test(t))){
+    openWaterReading();
+    const ph=t.match(/\bph\s*(\d+(?:\s+\d{1,2})?)/),ec=t.match(/\bec\s*(\d+(?:\s+\d{1,2})?)/);
+    if(ph&&getEl('wPh'))getEl('wPh').value=ph[1].replace(' ','.');
+    if(ec&&getEl('wEc'))getEl('wEc').value=ec[1].replace(' ','.');
+    setVoiceStatus('Relevé ouvert, à vérifier avant enregistrement.');return;
+  }
+  const ch=parseSpokenChamber(transcript);
+  if((t.includes('recolte')||t.includes('recolter'))&&ch){
+    const occ=chamberOccupants(ch.blockId,ch.n).filter(x=>x.culture.status==='Active');
+    const matching=occ.filter(({culture})=>t.includes(normalizeVoiceText(varietyName(culture.varietyId))));
+    const chosen=matching.length===1?matching[0]:occ.length===1?occ[0]:null;
+    if(!chosen){openChamber(ch.blockId,ch.n);alert('Choisis la culture à récolter pour éviter une attribution incorrecte.');return;}
+    openHarvest(chosen.culture.id,ch.n);
+    const parsed=parseVoiceHarvest(transcript);
+    if(parsed.qty>0){getEl('hqty').value=parsed.qty;getEl('hunit').value=parsed.unit;}
+    setVoiceStatus('Récolte préparée. Vérifie la quantité et la culture, puis enregistre.');return;
+  }
+  if(ch){openChamberByCode(chamberCode(ch.blockId,ch.n));return;}
+  setVoiceStatus(`Commande non reconnue : « ${transcript} ». Essaie « ouvre S24 », « demande client » ou « récolte 350 grammes S24 ».`);
+}
+
+function renderV21(){renderQuickChambers();renderClientRequests();renderRequestDashboard();renderForecasts();renderWaterDashboard();renderWaterHistory();renderPhotoGallery();}
+
 // ---------- 14. PARTAGE & SYNCHRONISATION ----------
 const cloud={
   session:null,user:null,greenhouseId:'',greenhouseName:'Serre principale',
@@ -3125,7 +3602,10 @@ const ENTITY_COLLECTIONS={
   stock:'stock',
   stock_movement:'stockMovements',
   sale:'sales',
-  cost:'costs'
+  cost:'costs',
+  client_request:'clientRequests',
+  water_reading:'waterReadings',
+  crop_photo:'cropPhotos'
 };
 
 function openSyncDB(){
@@ -3206,7 +3686,7 @@ function recordMap(rows){
   return m;
 }
 function hasMeaningfulLocalData(){
-  if((db.cultures||[]).length||(db.tasks||[]).length||(db.sales||[]).length||(db.costs||[]).length||(db.chamberHistory||[]).length||(db.harvests||[]).length||(db.inspections||[]).length) return true;
+  if((db.cultures||[]).length||(db.tasks||[]).length||(db.sales||[]).length||(db.costs||[]).length||(db.chamberHistory||[]).length||(db.harvests||[]).length||(db.inspections||[]).length||(db.clientRequests||[]).length||(db.waterReadings||[]).length||(db.cropPhotos||[]).length) return true;
   if((db.stock||[]).some(s=>Number(s.qty||0)>0||s.supplier||s.lot)) return true;
   const defaultIds=new Set(DEFAULT_VARIETIES.map(v=>v.id));
   if((db.varieties||[]).some(v=>!defaultIds.has(v.id))) return true;
@@ -3380,7 +3860,7 @@ function emptySharedDb(){
   return {
     schemaVersion:APP_VERSION,greenhouse:clone(SEED.greenhouse),
     blocks:[],varieties:[],cultures:[],chamberHistory:[],harvests:[],inspections:[],tasks:[],
-    stock:[],stockMovements:[],sales:[],costs:[]
+    stock:[],stockMovements:[],sales:[],costs:[],clientRequests:[],waterReadings:[],cropPhotos:[]
   };
 }
 function dbFromRemote(rows){
@@ -3468,7 +3948,8 @@ function actionLabel(a){
 function entityLabel(t){
   return ({task:'une tâche',culture:'une culture',variety:'une variété',stock:'un article de stock',
     stock_movement:'un mouvement de stock',sale:'une vente',cost:'un coût',block:'un bloc',
-    harvest:'une récolte',inspection:'une observation de tournée',chamber_history:'une chambre'}[t]||t||'un élément');
+    harvest:'une récolte',inspection:'une observation de tournée',chamber_history:'une chambre',
+    client_request:'une demande client',water_reading:'un relevé bassin',crop_photo:'une photo de culture'}[t]||t||'un élément');
 }
 function renderActivity(){
   const el=getEl('activityList');if(!el)return;
@@ -3643,7 +4124,7 @@ async function applyAppUpdate(){
 
 // ---------- 14. SAUVEGARDE / RESTAURATION V16 ----------
 function backupCounts(data){
-  const keys=['cultures','tasks','stock','sales','costs','varieties','harvests','inspections','chamberHistory'];
+  const keys=['cultures','tasks','stock','sales','costs','varieties','harvests','inspections','chamberHistory','clientRequests','waterReadings','cropPhotos'];
   const out={};
   keys.forEach(k=>out[k]=Array.isArray(data?.[k])?data[k].length:0);
   return out;
