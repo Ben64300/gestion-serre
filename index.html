@@ -495,7 +495,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V23 · transferts vocaux simplifiés installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V24 · correction des ventes et achats disponible.</div>
   </div>
 
   <div class="card">
@@ -513,8 +513,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de la V23</h3>
-    <p class="muted">V23 permet « L14 déplace vers S31 » : un plant prérempli avec confirmation. V22 ajoute le pointage automatique des plants présents par espèce et variété, avec correction par chambre. V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
+    <h3>À propos de la V24</h3>
+    <p class="muted">V24 permet de modifier les ventes et coûts déjà enregistrés, dont leurs notes, sans doublons. V23 permet « L14 déplace vers S31 » : un plant prérempli avec confirmation. V22 ajoute le pointage automatique des plants présents par espèce et variété, avec correction par chambre. V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
     <p class="small muted">Mets à jour les deux téléphones avant la première synchronisation des nouveautés. La reconnaissance vocale peut nécessiter la 4G. Les photos sont volontairement limitées.</p>
   </div>
 </section>
@@ -572,7 +572,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 23;
+const APP_VERSION = 24;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -843,8 +843,8 @@ function migrateData(raw){
   });
   x.stock = Array.isArray(x.stock) ? x.stock : [];
   x.stockMovements = Array.isArray(x.stockMovements) ? x.stockMovements : [];
-  x.sales = Array.isArray(x.sales) ? x.sales : [];
-  x.costs = Array.isArray(x.costs) ? x.costs : [];
+  x.sales = (Array.isArray(x.sales) ? x.sales : []).map(s=>Object.assign({notes:''},s));
+  x.costs = (Array.isArray(x.costs) ? x.costs : []).map(c=>Object.assign({notes:''},c));
   x.chamberHistory = Array.isArray(x.chamberHistory) ? x.chamberHistory : [];
   x.harvests = Array.isArray(x.harvests) ? x.harvests : [];
   x.harvests = x.harvests.map(h=>{
@@ -3124,6 +3124,7 @@ function applyMove(id){
 }
 
 // ---------- 12. VENTES / COÛTS ----------
+// V24 : les ventes et les achats/coûts se corrigent sans créer de doublon.
 function renderSales(){
   const month=todayISO().slice(0,7);
   const revenue=db.sales.filter(s=>String(s.date||'').startsWith(month)).reduce((a,s)=>a+Number(s.total||0),0);
@@ -3136,58 +3137,101 @@ function renderSales(){
 
   getEl('salesList').innerHTML=db.sales.length
     ? `<div class="card"><h3>Dernières ventes</h3>${[...db.sales].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(s=>
-      `<div class="item"><b>${fmt(s.date)} · ${esc(s.product)}</b><br>${s.qty} ${esc(s.unit)} × ${money(s.unitPrice)} = <b>${money(s.total)}</b><br>
-      <span class="muted">${esc(s.customer||'Client non renseigné')} · ${esc(varietyName(s.varietyId))} · ${esc(blockName(s.blockId))}</span></div>`).join('')}</div>`
+      `<div class="item"><div class="row"><div><b>${fmt(s.date)} · ${esc(s.product)}</b><br>${Number(s.qty||0).toLocaleString('fr-FR')} ${esc(s.unit)} × ${money(s.unitPrice)} = <b>${money(s.total)}</b><br>
+      <span class="muted">${esc(s.customer||'Client non renseigné')} · ${esc(varietyName(s.varietyId))} · ${esc(blockName(s.blockId))}</span>
+      ${s.notes?`<p class="small muted" style="white-space:pre-wrap">📝 ${esc(s.notes)}</p>`:''}</div>
+      <div class="fit"><button class="secondary" onclick="openEditSale('${s.id}')" aria-label="Modifier cette vente">✏️ Modifier</button></div></div></div>`).join('')}</div>`
     : '<div class="empty">Aucune vente.</div>';
 
   getEl('costList').innerHTML=db.costs.length
-    ? `<div class="card"><h3>Derniers coûts</h3>${[...db.costs].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(c=>
-      `<div class="item"><b>${fmt(c.date)} · ${esc(c.label)}</b> — ${money(c.amount)}<br>
-      <span class="muted">${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))}</span></div>`).join('')}</div>`
+    ? `<div class="card"><h3>Derniers coûts / achats</h3>${[...db.costs].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(c=>
+      `<div class="item"><div class="row"><div><b>${fmt(c.date)} · ${esc(c.label)}</b> — ${money(c.amount)}<br>
+      <span class="muted">${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))}</span>
+      ${c.notes?`<p class="small muted" style="white-space:pre-wrap">📝 ${esc(c.notes)}</p>`:''}</div>
+      <div class="fit"><button class="secondary" onclick="openEditCost('${c.id}')" aria-label="Modifier cet achat ou coût">✏️ Modifier</button></div></div></div>`).join('')}</div>`
     : '';
 }
-function openSale(){
-  modal(`<h2>Nouvelle vente</h2>
-    <label>Date</label><input id="sdate" type="date" value="${todayISO()}">
-    <label>Produit</label><input id="sprod" placeholder="ex. tomate, basilic, bouquet…">
-    <label>Variété</label><select id="svar">${varietyOptions('',true)}</select>
-    <label>Bloc</label><select id="sblock">${blockOptions('',true)}</select>
-    <label>Client</label><input id="scustomer">
+function openSale(editId=''){
+  const s=editId?db.sales.find(x=>x.id===editId):null;
+  if(editId&&!s){alert('Cette vente est introuvable. Actualise les données.');return}
+  modal(`<h2>${s?'✏️ Modifier la vente':'Nouvelle vente'}</h2>
+    <label>Date</label><input id="sdate" type="date" value="${esc(s?.date||todayISO())}">
+    <label>Produit</label><input id="sprod" placeholder="ex. tomate, basilic, bouquet…" value="${esc(s?.product||'')}">
+    <label>Variété</label><select id="svar">${varietyOptions(s?.varietyId||'',true)}</select>
+    <label>Bloc</label><select id="sblock">${blockOptions(s?.blockId||'',true)}</select>
+    <label>Client</label><input id="scustomer" value="${esc(s?.customer||'')}">
     <div class="row">
-      <div><label>Quantité</label><input id="sqty" type="number" step=".01" value="1"></div>
-      <div><label>Unité</label><input id="sunit2" value="kg"></div>
-      <div><label>Prix unitaire</label><input id="suprice" type="number" step=".01" value="0"></div>
+      <div><label>Quantité</label><input id="sqty" type="number" min="0" step="any" value="${esc(s?.qty??1)}"></div>
+      <div><label>Unité</label><input id="sunit2" value="${esc(s?.unit??'kg')}"></div>
+      <div><label>Prix unitaire (€)</label><input id="suprice" type="number" min="0" step="any" value="${esc(s?.unitPrice??0)}"></div>
     </div>
-    <br><button onclick="addSale()">Enregistrer</button>
+    <label>Notes / précisions sur la vente</label>
+    <textarea id="snotes" placeholder="Remise, conditionnement, règlement, livraison…">${esc(s?.notes||'')}</textarea>
+    <br><button onclick="saveSale('${s?.id||''}')">${s?'Enregistrer les modifications':'Enregistrer la vente'}</button>
     <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
-function addSale(){
-  const q=Number(getEl('sqty').value||0), p=Number(getEl('suprice').value||0);
-  db.sales.push({
-    id:uid('sale'),date:getEl('sdate').value,product:getEl('sprod').value.trim(),
-    varietyId:getEl('svar').value,blockId:getEl('sblock').value,
-    customer:getEl('scustomer').value.trim(),qty:q,unit:getEl('sunit2').value.trim(),
-    unitPrice:p,total:q*p
-  });
-  closeModal(); persist({message:'Vente enregistrée'});
+function openEditSale(id){openSale(id)}
+function saveSale(editId=''){
+  const date=getEl('sdate').value;
+  const product=getEl('sprod').value.trim();
+  const qtyText=getEl('sqty').value.trim(),priceText=getEl('suprice').value.trim();
+  const q=Number(qtyText),p=Number(priceText),unit=getEl('sunit2').value.trim();
+  if(!date||!product||!unit||!qtyText||!priceText||!Number.isFinite(q)||q<=0||!Number.isFinite(p)||p<0){
+    alert('Indique une date, un produit, une unité, une quantité positive et un prix unitaire valide (zéro autorisé).');return;
+  }
+  const fields={
+    date,product,varietyId:getEl('svar').value,blockId:getEl('sblock').value,
+    customer:getEl('scustomer').value.trim(),qty:q,unit,unitPrice:p,
+    total:Math.round((q*p+Number.EPSILON)*100)/100,
+    notes:getEl('snotes').value.trim(),updatedAt:new Date().toISOString()
+  };
+  if(editId){
+    const target=db.sales.find(s=>s.id===editId);
+    if(!target){alert('Cette vente est introuvable.');return}
+    Object.assign(target,fields); // conserve l'identifiant et l'historique de création
+  }else{
+    db.sales.push(Object.assign({id:uid('sale'),createdAt:new Date().toISOString()},fields));
+  }
+  closeModal();persist({message:editId?'Vente modifiée':'Vente enregistrée'});
 }
-function openCost(){
-  modal(`<h2>Ajouter un coût</h2>
-    <label>Date</label><input id="cdate" type="date" value="${todayISO()}">
-    <label>Libellé</label><input id="clabel" placeholder="engrais, semences, emballage…">
-    <label>Montant (€)</label><input id="camount" type="number" step=".01" value="0">
-    <label>Variété</label><select id="cvar">${varietyOptions('',true)}</select>
-    <label>Bloc</label><select id="cblock">${blockOptions('',true)}</select>
-    <br><button onclick="addCost()">Enregistrer</button>
+// Conservé pour d'anciennes actions qui appellent encore addSale().
+function addSale(){saveSale()}
+function openCost(editId=''){
+  const c=editId?db.costs.find(x=>x.id===editId):null;
+  if(editId&&!c){alert('Cet achat ou coût est introuvable. Actualise les données.');return}
+  modal(`<h2>${c?'✏️ Modifier l’achat / le coût':'Ajouter un achat / coût'}</h2>
+    <label>Date</label><input id="cdate" type="date" value="${esc(c?.date||todayISO())}">
+    <label>Libellé</label><input id="clabel" placeholder="engrais, semences, emballage…" value="${esc(c?.label||'')}">
+    <label>Montant (€)</label><input id="camount" type="number" min="0" step="any" value="${esc(c?.amount??0)}">
+    <label>Variété</label><select id="cvar">${varietyOptions(c?.varietyId||'',true)}</select>
+    <label>Bloc</label><select id="cblock">${blockOptions(c?.blockId||'',true)}</select>
+    <label>Notes / précisions sur l'achat</label>
+    <textarea id="cnotes" placeholder="Fournisseur, référence, n° de facture, conditionnement…">${esc(c?.notes||'')}</textarea>
+    <br><button onclick="saveCost('${c?.id||''}')">${c?'Enregistrer les modifications':'Enregistrer l’achat / le coût'}</button>
     <button class="secondary" onclick="closeModal()">Annuler</button>`);
 }
-function addCost(){
-  db.costs.push({
-    id:uid('cost'),date:getEl('cdate').value,label:getEl('clabel').value.trim(),
-    amount:Number(getEl('camount').value||0),varietyId:getEl('cvar').value,blockId:getEl('cblock').value
-  });
-  closeModal(); persist({message:'Coût enregistré'});
+function openEditCost(id){openCost(id)}
+function saveCost(editId=''){
+  const date=getEl('cdate').value;
+  const label=getEl('clabel').value.trim();
+  const amountText=getEl('camount').value.trim(),amount=Number(amountText);
+  if(!date||!label||!amountText||!Number.isFinite(amount)||amount<0){
+    alert('Indique une date, un libellé et un montant valide (zéro autorisé).');return;
+  }
+  const fields={
+    date,label,amount,varietyId:getEl('cvar').value,blockId:getEl('cblock').value,
+    notes:getEl('cnotes').value.trim(),updatedAt:new Date().toISOString()
+  };
+  if(editId){
+    const target=db.costs.find(c=>c.id===editId);
+    if(!target){alert('Cet achat ou coût est introuvable.');return}
+    Object.assign(target,fields);
+  }else{
+    db.costs.push(Object.assign({id:uid('cost'),createdAt:new Date().toISOString()},fields));
+  }
+  closeModal();persist({message:editId?'Achat / coût modifié':'Achat / coût enregistré'});
 }
+function addCost(){saveCost()}
 
 // ---------- 13. BIBLIOTHÈQUE DES CULTURES ----------
 function populateVarietyModuleFilter(){

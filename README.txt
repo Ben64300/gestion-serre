@@ -1,3 +1,31 @@
+GESTION SERRE — V24 : MODIFICATION DES VENTES ET DES ACHATS / COÛTS
+===================================================================
+
+NOUVEAUTÉS
+- Dans « Ventes », bouton « ✏️ Modifier » à côté de chaque vente et de chaque achat / coût.
+- Réouverture de toutes les données : date, produit/libellé, quantité, unité, prix, client, variété, bloc.
+- Champ « Notes / précisions » pour les ventes et les achats : texte affiché dans l’historique et modifiable.
+- Les modifications mettent à jour l’enregistrement original (même identifiant), sans doublon.
+- Le total d’une vente et les indicateurs du mois sont recalculés après correction.
+- Les anciennes ventes et dépenses restent compatibles ; elles s'ouvrent avec des notes vides.
+- Sauvegarde locale avec annulation possible, comme pour les autres modifications.
+- La synchronisation Supabase utilise les collections existantes (ventes, coûts) et conserve le mode hors connexion.
+- Les améliorations V23 (transfert vocal express) et V22 (inventaire vivant) restent incluses.
+
+INSTALLATION
+1. Vérifiez la synchronisation sur chaque téléphone et créez une sauvegarde depuis « Outils ».
+2. Dans le dépôt GitHub Pages, remplacez les 5 fichiers : index.html, manifest.json, sw.js,
+   README.txt et qr-chambres.pdf (fichier QR inchangé).
+3. Actualisez/réouvrez l’application avec la connexion activée jusqu'à l'affichage de « V24 ».
+4. Dans « Ventes », ouvrez « ✏️ Modifier » sur une vente passée, corrigez une note et enregistrez.
+5. Vérifiez l'absence de doublon et le maintien de la correction après redémarrage puis synchronisation.
+6. Répétez le test sur un coût / achat, puis sur l'autre téléphone.
+
+IMPORTANT
+Un achat enregistré comme mouvement de stock est distinct d'un coût dans l'onglet « Ventes ».
+Les fiches de stock ont déjà leur propre bouton « Modifier ».
+Évitez de corriger simultanément le même enregistrement depuis deux téléphones hors ligne.
+
 GESTION SERRE — V23 : TRANSFERT VOCAL EXPRESS (1 PLANT)
 ===================================================
 
