@@ -1,3 +1,34 @@
+GESTION SERRE — V23 : TRANSFERT VOCAL EXPRESS (1 PLANT)
+===================================================
+
+NOUVEAUTÉ PRINCIPALE
+- Dites simplement : « L14 déplace vers S31 ».
+- Fonctionne aussi avec « déplace L14 vers S31 » et « L quatorze déplace vers S trente-et-un ».
+- Par défaut, UN SEUL plant est sélectionné pour ce raccourci, même si la chambre en contient plusieurs d'une seule culture.
+- Le nom de la variété n'a pas besoin d'être dicté si une seule culture occupe la chambre source.
+- L'application ouvre la fenêtre de transfert, avec le départ, la destination et la quantité (1) préremplis.
+- VÉRIFIEZ LA PROPOSITION ET APPUYEZ SUR « Confirmer le déplacement ».
+- La voix ne déclenche aucun déplacement définitif sans cette confirmation.
+- La commande complète reste disponible : « déplace 5 plants de S24 vers L14 ».
+- Le raccourci fonctionne avec l'assistant vocal de l'Accueil, du Terrain, et pendant la tournée.
+
+CONTRÔLES DE SÉCURITÉ
+- Si la chambre source comporte plusieurs cultures ou lots, l'application n'en choisit aucun automatiquement.
+- Si la chambre de destination est pleine, la préparation est refusée.
+- Impossible de déplacer vers sa propre chambre ni de retirer plus de plants qu'il n'en existe.
+- Les transferts entre GrowStream L et S conservent le suivi des lots et les historiques.
+- Les quantités dans l'inventaire V22 se mettent à jour après confirmation du transfert.
+- La reconnaissance vocale dépend du navigateur ; elle peut nécessiter la 4G.
+
+INSTALLATION
+1. Sur les deux téléphones, vérifier la synchronisation puis effectuer une sauvegarde dans Outils.
+2. Dans le dépôt GitHub Pages, remplacer les 5 fichiers de l'application : index.html, manifest.json,
+   sw.js, README.txt et qr-chambres.pdf.
+3. Relancer l'application sur les deux téléphones, et vérifier que la version V23 est affichée.
+4. Essayer « L14 déplace vers S31 » sur une chambre avec une seule culture, vérifier le formulaire et
+   confirmer ou annuler. Tester ensuite avec une chambre contenant plusieurs cultures.
+5. Éviter les modifications simultanées hors ligne du même lot depuis deux téléphones jusqu'à la synchronisation.
+
 GESTION SERRE — V22 : INVENTAIRE VIVANT ET POINTAGE DES PLANTS
 ===========================================================
 

@@ -256,7 +256,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
     <div class="searchBox"><input id="globalSearch" placeholder="ex. L17, Pak choï, Copper Currant, engrais…" oninput="renderUniversalSearch()"></div>
     <div class="toolbar" style="margin-top:9px">
       <button id="dashboardVoiceBtn" class="secondary voiceBtn" type="button" onclick="startSmartVoice()">🎙️ Assistant vocal</button>
-      <span class="small muted">Dis « S24 », « récolte 350 grammes S24 », « demande client »…</span>
+      <span class="small muted">Dis « L14 déplace vers S31 », « récolte 350 grammes S24 »…</span>
     </div>
     <div id="dashboardVoiceStatus" class="voiceTranscript" role="status" aria-live="polite">Appuie sur le micro et annonce le code d'une chambre.</div>
     <div id="globalSearchResults" class="searchResults"></div>
@@ -299,7 +299,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   <div class="row"><h2>Mode terrain</h2><button class="fit" onclick="startTour()">🚶 Démarrer une tournée</button></div>
   <div class="card assistantCard">
     <div class="assistantTitle">🎙️ Assistant vocal terrain <span class="proBadge">PRO</span></div>
-    <p class="small muted">« Ouvre S24 » ou « L quinze » depuis n'importe quel écran. Pendant une tournée : « RAS », « problème pucerons », « récolte 2 kilos 400 », « suivant » ou « précédente ».</p>
+    <p class="small muted">« L14 déplace vers S31 », « ouvre S24 » ou « L quinze ». Pendant une tournée : « RAS », « problème pucerons », « récolte 2 kilos 400 », « suivant » ou « précédente ».</p>
     <div class="toolbar">
       <button id="fieldVoiceBtn" class="voiceBtn" onclick="startVoiceAssistant()">🎙️ Écouter</button>
       <label class="small" style="display:flex;align-items:center;gap:7px"><input id="voiceFeedbackToggle" type="checkbox" style="width:auto" onchange="setVoiceFeedback(this.checked)"> Confirmation vocale</label>
@@ -495,7 +495,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V22 · comptage des plants installée.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V23 · transferts vocaux simplifiés installée.</div>
   </div>
 
   <div class="card">
@@ -513,8 +513,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de la V22</h3>
-    <p class="muted">V22 ajoute le pointage automatique des plants présents par espèce et variété, avec correction par chambre. V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
+    <h3>À propos de la V23</h3>
+    <p class="muted">V23 permet « L14 déplace vers S31 » : un plant prérempli avec confirmation. V22 ajoute le pointage automatique des plants présents par espèce et variété, avec correction par chambre. V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
     <p class="small muted">Mets à jour les deux téléphones avant la première synchronisation des nouveautés. La reconnaissance vocale peut nécessiter la 4G. Les photos sont volontairement limitées.</p>
   </div>
 </section>
@@ -572,7 +572,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 22;
+const APP_VERSION = 23;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -2154,6 +2154,7 @@ function parseSpokenChamber(raw){
 function startChamberVoiceNavigation(){
   startRecognition({prompt:'Dis « ouvre S24 », « L quinze » ou « S quatre »…',
     onResult:transcript=>{
+      if(handleVoiceTransfer(transcript))return;
       const chamber=parseSpokenChamber(transcript);
       if(!chamber){
         setVoiceStatus(`Je n'ai pas reconnu la chambre dans « ${transcript} ». Essaie « S vingt-quatre » ou saisis son code.`);
@@ -2239,6 +2240,7 @@ function startVoiceAssistant(){
 function handleTourVoiceCommand(transcript){
   const t=normalizeVoiceText(transcript);
   if(!t) return;
+  if(handleVoiceTransfer(transcript))return;
   const destination=parseSpokenChamber(transcript);
   if(destination){
     voiceAcknowledge(`Chambre ${chamberCode(destination.blockId,destination.n)}`);
@@ -3753,28 +3755,74 @@ function renderPhotoGallery(){
     '<div class="small muted">Pas encore de photos. Ouvre une chambre puis sélectionne 📷 Photo.</div>';
 }
 
+// V23 : transfert vocal raccourci, prérempli à UN plant :
+//   « L14 déplace vers S31 », « déplace L14 vers S31 ».
+// La formulation complète « déplace 5 plants de S24 vers L14 » reste utilisable.
+// Aucun transfert n'est enregistré par la voix seule : validation manuelle obligatoire.
+function parseVoiceTransfer(transcript){
+  const t=normalizeVoiceText(transcript);
+  const verb='(?:deplace|deplacer|transfere|transferer)';
+  let match=t.match(new RegExp('^'+verb+'\\s+(\\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\\s+plants?\\s+(?:de |depuis )(.+?)\\s+vers\\s+(.+)$'));
+  if(match){
+    const qty=/^\d+$/.test(match[1])?Number(match[1]):wordCountSimple(match[1]);
+    return {qty,from:match[2],to:match[3],short:false};
+  }
+  // L14 déplace vers S31, y compris les numéros dictés en toutes lettres.
+  match=t.match(new RegExp('^(.+?)\\s+'+verb+'\\s+vers\\s+(.+)$'));
+  if(match)return {qty:1,from:match[1],to:match[2],short:true};
+  // Déplace L14 vers S31, variante naturelle facultative.
+  match=t.match(new RegExp('^'+verb+'\\s+(?:de |depuis )?(.+?)\\s+vers\\s+(.+)$'));
+  if(match)return {qty:1,from:match[1],to:match[2],short:true};
+  return null;
+}
+function handleVoiceTransfer(transcript){
+  const move=parseVoiceTransfer(transcript);
+  if(!move)return false;
+  const qty=move.qty,from=parseSpokenChamber(move.from),to=parseSpokenChamber(move.to);
+  if(!from||!to||!Number.isInteger(qty)||qty<1){
+    setVoiceStatus('Transfert incomplet. Dis par exemple « L14 déplace vers S31 ».');return true;
+  }
+  if(from.blockId===to.blockId&&from.n===to.n){
+    setVoiceStatus('La chambre de départ et d’arrivée est identique.');return true;
+  }
+  const fromCode=chamberCode(from.blockId,from.n),toCode=chamberCode(to.blockId,to.n);
+  // Sans quantité dictée, ne jamais choisir au hasard entre deux lots.
+  const occupants=chamberOccupants(from.blockId,from.n)
+    .filter(x=>x.culture.status!=='Terminée'&&Number(x.allocation.qty)>0);
+  const eligible=occupants.filter(x=>Number(x.allocation.qty)>=qty);
+  if(eligible.length!==1 || (move.short&&occupants.length!==1)){
+    setVoiceStatus(!occupants.length?`${fromCode} ne contient aucun plant à déplacer.`:
+      `Plusieurs cultures ou une quantité insuffisante dans ${fromCode}. Choisis le lot directement dans la chambre.`);
+    if(occupants.length)openChamber(from.blockId,from.n);
+    return true;
+  }
+  if(chamberRemaining(to.blockId,to.n)<qty){
+    setVoiceStatus(`${toCode} n’a pas assez de places libres pour ${qty} plant${qty>1?'s':''}.`);return true;
+  }
+  openMoveAllocation(eligible[0].culture.id,from.n);
+  const block=getEl('moveBlock'),target=getEl('moveTarget'),input=getEl('moveQty');
+  if(!block||!target||!input){setVoiceStatus('Impossible de préparer ce transfert. Ouvre la chambre pour réessayer.');return true;}
+  block.value=to.blockId;
+  refreshMoveTargets(eligible[0].culture.id,from.n);
+  target.value=String(to.n);
+  refreshMoveCapacity();
+  if(target.value!==String(to.n)){
+    setVoiceStatus(`Destination ${toCode} indisponible. Vérifie la chambre d’arrivée.`);return true;
+  }
+  input.value=String(qty);
+  setVoiceStatus(`${qty} plant${qty>1?'s':''} de ${varietyName(eligible[0].culture.varietyId)} : ${fromCode} → ${toCode}. Vérifie, puis confirme sur l’écran.`);
+  voiceAcknowledge(`Déplacement de ${qty} plant préparé. À confirmer.`);
+  return true;
+}
+
 // Assistant rapide : aucune opération destructive n'est validée oralement.
 function startSmartVoice(){
-  startRecognition({prompt:'Dis « S24 », « récolte 350 grammes S24 », « déplace 5 plants de S24 vers L14 », « demande client »…',
+  startRecognition({prompt:'Dis « L14 déplace vers S31 », « déplace 5 plants de S24 vers L14 », « récolte 350 grammes S24 »…',
     onResult:handleSmartVoice});
 }
 function handleSmartVoice(transcript){
   const t=normalizeVoiceText(transcript);
-  const move=t.match(/(?:deplace|deplacer|transfere|transferer)\s+(\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\s+plants?\s+(?:de |depuis )(.+?)\s+vers\s+(.+)/);
-  if(move){
-    const qty=/^\d+$/.test(move[1])?Number(move[1]):wordCountSimple(move[1]);
-    const from=parseSpokenChamber(move[2]),to=parseSpokenChamber(move[3]);
-    if(!from||!to||!qty){setVoiceStatus('Transfert incomplet. Réessaie avec deux codes de chambre et une quantité.');return;}
-    if(from.blockId===to.blockId&&from.n===to.n){setVoiceStatus('La chambre de départ et d’arrivée est identique.');return;}
-    if(chamberRemaining(to.blockId,to.n)<qty){setVoiceStatus(`${chamberCode(to.blockId,to.n)} n’a pas assez de places libres pour ${qty} plants.`);return;}
-    const occ=chamberOccupants(from.blockId,from.n).filter(x=>x.culture.status!=='Terminée'&&Number(x.allocation.qty)>=qty);
-    if(occ.length!==1){openChamber(from.blockId,from.n);alert('Choisis d’abord la culture à transférer dans cette chambre.');return;}
-    openMoveAllocation(occ[0].culture.id,from.n);
-    const block=getEl('moveBlock'),target=getEl('moveTarget'),input=getEl('moveQty');
-    if(block&&target&&input){block.value=to.blockId;refreshMoveTargets(occ[0].culture.id,from.n);target.value=String(to.n);refreshMoveCapacity();input.value=qty;}
-    setVoiceStatus(`Transfert préparé de ${qty} plant(s) : ${chamberCode(from.blockId,from.n)} vers ${chamberCode(to.blockId,to.n)}. Vérifie et confirme.`);
-    return;
-  }
+  if(handleVoiceTransfer(transcript))return;
   if(t.includes('demande client')||t.includes('commande client')||t.startsWith('noter demande')){
     openClientRequest();setVoiceStatus('Demande client ouverte. Renseigne le restaurant et les produits.');return;
   }
