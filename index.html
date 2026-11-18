@@ -299,7 +299,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   <div class="row"><h2>Mode terrain</h2><button class="fit" onclick="startTour()">🚶 Démarrer une tournée</button></div>
   <div class="card assistantCard">
     <div class="assistantTitle">🎙️ Assistant vocal terrain <span class="proBadge">PRO</span></div>
-    <p class="small muted">« L14 déplace vers S31 », « ouvre S24 » ou « L quinze ». Pendant une tournée : « RAS », « problème pucerons », « récolte 2 kilos 400 », « suivant » ou « précédente ».</p>
+    <p class="small muted">« L14 déplace vers S31 », « ouvre S24 » ou « L quinze » depuis n'importe quel écran. Pendant une tournée : « RAS », « problème pucerons », « récolte 2 kilos 400 », « suivant » ou « précédente ».</p>
     <div class="toolbar">
       <button id="fieldVoiceBtn" class="voiceBtn" onclick="startVoiceAssistant()">🎙️ Écouter</button>
       <label class="small" style="display:flex;align-items:center;gap:7px"><input id="voiceFeedbackToggle" type="checkbox" style="width:auto" onchange="setVoiceFeedback(this.checked)"> Confirmation vocale</label>
@@ -495,7 +495,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 
   <div class="card">
     <div class="row"><h3>Mises à jour</h3><button class="secondary fit" onclick="checkForUpdate(true)">↻ Vérifier</button></div>
-    <div id="updateStatus" class="muted">Gestion Serre V24 · correction des ventes et achats disponible.</div>
+    <div id="updateStatus" class="muted">Gestion Serre V25 · synchronisation sécurisée installée.</div>
   </div>
 
   <div class="card">
@@ -513,8 +513,8 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
   </div>
 
   <div class="card">
-    <h3>À propos de la V24</h3>
-    <p class="muted">V24 permet de modifier les ventes et coûts déjà enregistrés, dont leurs notes, sans doublons. V23 permet « L14 déplace vers S31 » : un plant prérempli avec confirmation. V22 ajoute le pointage automatique des plants présents par espèce et variété, avec correction par chambre. V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
+    <h3>À propos de la V25</h3>
+    <p class="muted">V23 sécurise la synchronisation entre Android et PC et préserve les conflits sans écrasement. V25 protège la synchronisation et archive les anciennes opérations en attente. V24 permet de modifier ventes, achats et notes ; V23 conserve les transferts vocaux express. V22 ajoute le pointage automatique des plants présents par espèce et variété, avec correction par chambre. V21 regroupe : commandes vocales préparées et validées, chambres favorites, replantation rapide, suivi pH/EC/température, photographies datées compressées, prévisions indicatives de récolte et demandes clients distinctes des ventes. V19 et les fonctions antérieures sont conservées.</p>
     <p class="small muted">Mets à jour les deux téléphones avant la première synchronisation des nouveautés. La reconnaissance vocale peut nécessiter la 4G. Les photos sont volontairement limitées.</p>
   </div>
 </section>
@@ -572,7 +572,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 24;
+const APP_VERSION = 25;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -586,7 +586,7 @@ const SESSION_KEY = 'gestion_serre_v14_session';
 const TEAM_CACHE_KEY = 'gestion_serre_v14_team';
 const CLOUD_LINK_KEY = 'gestion_serre_v14_greenhouse';
 const SYNC_DB_NAME = 'gestion_serre_v14_sync';
-const SYNC_DB_VERSION = 2;
+const SYNC_DB_VERSION = 3;
 const SYNC_INTERVAL_MS = 20000;
 
 const WORKSPACE_KEY = 'gestion_serre_v16_workspace';
@@ -3124,31 +3124,28 @@ function applyMove(id){
 }
 
 // ---------- 12. VENTES / COÛTS ----------
-// V24 : les ventes et les achats/coûts se corrigent sans créer de doublon.
+// V24 — modification des ventes et des achats sans doublons.
 function renderSales(){
   const month=todayISO().slice(0,7);
   const revenue=db.sales.filter(s=>String(s.date||'').startsWith(month)).reduce((a,s)=>a+Number(s.total||0),0);
   const costs=db.costs.filter(c=>String(c.date||'').startsWith(month)).reduce((a,c)=>a+Number(c.amount||0),0);
-
   getEl('salesMetrics').innerHTML=
     `<div class="card metric"><b>${money(revenue)}</b><small>CA du mois</small></div>
      <div class="card metric"><b>${money(costs)}</b><small>Coûts du mois</small></div>
      <div class="card metric"><b>${money(revenue-costs)}</b><small>Marge</small></div>`;
-
   getEl('salesList').innerHTML=db.sales.length
     ? `<div class="card"><h3>Dernières ventes</h3>${[...db.sales].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(s=>
       `<div class="item"><div class="row"><div><b>${fmt(s.date)} · ${esc(s.product)}</b><br>${Number(s.qty||0).toLocaleString('fr-FR')} ${esc(s.unit)} × ${money(s.unitPrice)} = <b>${money(s.total)}</b><br>
       <span class="muted">${esc(s.customer||'Client non renseigné')} · ${esc(varietyName(s.varietyId))} · ${esc(blockName(s.blockId))}</span>
       ${s.notes?`<p class="small muted" style="white-space:pre-wrap">📝 ${esc(s.notes)}</p>`:''}</div>
-      <div class="fit"><button class="secondary" onclick="openEditSale('${s.id}')" aria-label="Modifier cette vente">✏️ Modifier</button></div></div></div>`).join('')}</div>`
+      <div class="fit"><button class="secondary" onclick="openEditSale('${s.id}')">✏️ Modifier</button></div></div></div>`).join('')}</div>`
     : '<div class="empty">Aucune vente.</div>';
-
   getEl('costList').innerHTML=db.costs.length
     ? `<div class="card"><h3>Derniers coûts / achats</h3>${[...db.costs].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(c=>
       `<div class="item"><div class="row"><div><b>${fmt(c.date)} · ${esc(c.label)}</b> — ${money(c.amount)}<br>
       <span class="muted">${esc(varietyName(c.varietyId))} · ${esc(blockName(c.blockId))}</span>
       ${c.notes?`<p class="small muted" style="white-space:pre-wrap">📝 ${esc(c.notes)}</p>`:''}</div>
-      <div class="fit"><button class="secondary" onclick="openEditCost('${c.id}')" aria-label="Modifier cet achat ou coût">✏️ Modifier</button></div></div></div>`).join('')}</div>`
+      <div class="fit"><button class="secondary" onclick="openEditCost('${c.id}')">✏️ Modifier</button></div></div></div>`).join('')}</div>`
     : '';
 }
 function openSale(editId=''){
@@ -3177,7 +3174,7 @@ function saveSale(editId=''){
   const qtyText=getEl('sqty').value.trim(),priceText=getEl('suprice').value.trim();
   const q=Number(qtyText),p=Number(priceText),unit=getEl('sunit2').value.trim();
   if(!date||!product||!unit||!qtyText||!priceText||!Number.isFinite(q)||q<=0||!Number.isFinite(p)||p<0){
-    alert('Indique une date, un produit, une unité, une quantité positive et un prix unitaire valide (zéro autorisé).');return;
+    alert('Indique une date, un produit, une unité, une quantité positive et un prix valide.');return;
   }
   const fields={
     date,product,varietyId:getEl('svar').value,blockId:getEl('sblock').value,
@@ -3188,13 +3185,12 @@ function saveSale(editId=''){
   if(editId){
     const target=db.sales.find(s=>s.id===editId);
     if(!target){alert('Cette vente est introuvable.');return}
-    Object.assign(target,fields); // conserve l'identifiant et l'historique de création
+    Object.assign(target,fields);
   }else{
     db.sales.push(Object.assign({id:uid('sale'),createdAt:new Date().toISOString()},fields));
   }
   closeModal();persist({message:editId?'Vente modifiée':'Vente enregistrée'});
 }
-// Conservé pour d'anciennes actions qui appellent encore addSale().
 function addSale(){saveSale()}
 function openCost(editId=''){
   const c=editId?db.costs.find(x=>x.id===editId):null;
@@ -3216,7 +3212,7 @@ function saveCost(editId=''){
   const label=getEl('clabel').value.trim();
   const amountText=getEl('camount').value.trim(),amount=Number(amountText);
   if(!date||!label||!amountText||!Number.isFinite(amount)||amount<0){
-    alert('Indique une date, un libellé et un montant valide (zéro autorisé).');return;
+    alert('Indique une date, un libellé et un montant valide.');return;
   }
   const fields={
     date,label,amount,varietyId:getEl('cvar').value,blockId:getEl('cblock').value,
@@ -3799,10 +3795,8 @@ function renderPhotoGallery(){
     '<div class="small muted">Pas encore de photos. Ouvre une chambre puis sélectionne 📷 Photo.</div>';
 }
 
-// V23 : transfert vocal raccourci, prérempli à UN plant :
-//   « L14 déplace vers S31 », « déplace L14 vers S31 ».
-// La formulation complète « déplace 5 plants de S24 vers L14 » reste utilisable.
-// Aucun transfert n'est enregistré par la voix seule : validation manuelle obligatoire.
+// Assistant rapide : aucune opération destructive n'est validée oralement.
+// V23 — transfert vocal express prérempli : aucune action définitive sans confirmation.
 function parseVoiceTransfer(transcript){
   const t=normalizeVoiceText(transcript);
   const verb='(?:deplace|deplacer|transfere|transferer)';
@@ -3811,10 +3805,8 @@ function parseVoiceTransfer(transcript){
     const qty=/^\d+$/.test(match[1])?Number(match[1]):wordCountSimple(match[1]);
     return {qty,from:match[2],to:match[3],short:false};
   }
-  // L14 déplace vers S31, y compris les numéros dictés en toutes lettres.
   match=t.match(new RegExp('^(.+?)\\s+'+verb+'\\s+vers\\s+(.+)$'));
   if(match)return {qty:1,from:match[1],to:match[2],short:true};
-  // Déplace L14 vers S31, variante naturelle facultative.
   match=t.match(new RegExp('^'+verb+'\\s+(?:de |depuis )?(.+?)\\s+vers\\s+(.+)$'));
   if(match)return {qty:1,from:match[1],to:match[2],short:true};
   return null;
@@ -3823,43 +3815,31 @@ function handleVoiceTransfer(transcript){
   const move=parseVoiceTransfer(transcript);
   if(!move)return false;
   const qty=move.qty,from=parseSpokenChamber(move.from),to=parseSpokenChamber(move.to);
-  if(!from||!to||!Number.isInteger(qty)||qty<1){
-    setVoiceStatus('Transfert incomplet. Dis par exemple « L14 déplace vers S31 ».');return true;
-  }
-  if(from.blockId===to.blockId&&from.n===to.n){
-    setVoiceStatus('La chambre de départ et d’arrivée est identique.');return true;
-  }
+  if(!from||!to||!Number.isInteger(qty)||qty<1){setVoiceStatus('Transfert incomplet. Dis « L14 déplace vers S31 ».');return true;}
+  if(from.blockId===to.blockId&&from.n===to.n){setVoiceStatus('Départ et arrivée identiques.');return true;}
   const fromCode=chamberCode(from.blockId,from.n),toCode=chamberCode(to.blockId,to.n);
-  // Sans quantité dictée, ne jamais choisir au hasard entre deux lots.
-  const occupants=chamberOccupants(from.blockId,from.n)
-    .filter(x=>x.culture.status!=='Terminée'&&Number(x.allocation.qty)>0);
+  const occupants=chamberOccupants(from.blockId,from.n).filter(x=>x.culture.status!=='Terminée'&&Number(x.allocation.qty)>0);
   const eligible=occupants.filter(x=>Number(x.allocation.qty)>=qty);
   if(eligible.length!==1 || (move.short&&occupants.length!==1)){
-    setVoiceStatus(!occupants.length?`${fromCode} ne contient aucun plant à déplacer.`:
-      `Plusieurs cultures ou une quantité insuffisante dans ${fromCode}. Choisis le lot directement dans la chambre.`);
+    setVoiceStatus(!occupants.length?`${fromCode} ne contient aucun plant à déplacer.`:`Plusieurs cultures ou une quantité insuffisante dans ${fromCode}. Choisis le lot directement dans la chambre.`);
     if(occupants.length)openChamber(from.blockId,from.n);
     return true;
   }
-  if(chamberRemaining(to.blockId,to.n)<qty){
-    setVoiceStatus(`${toCode} n’a pas assez de places libres pour ${qty} plant${qty>1?'s':''}.`);return true;
-  }
+  if(chamberRemaining(to.blockId,to.n)<qty){setVoiceStatus(`${toCode} n’a pas assez de places libres.`);return true;}
   openMoveAllocation(eligible[0].culture.id,from.n);
   const block=getEl('moveBlock'),target=getEl('moveTarget'),input=getEl('moveQty');
-  if(!block||!target||!input){setVoiceStatus('Impossible de préparer ce transfert. Ouvre la chambre pour réessayer.');return true;}
+  if(!block||!target||!input){setVoiceStatus('Impossible de préparer le transfert.');return true;}
   block.value=to.blockId;
   refreshMoveTargets(eligible[0].culture.id,from.n);
   target.value=String(to.n);
   refreshMoveCapacity();
-  if(target.value!==String(to.n)){
-    setVoiceStatus(`Destination ${toCode} indisponible. Vérifie la chambre d’arrivée.`);return true;
-  }
+  if(target.value!==String(to.n)){setVoiceStatus(`Destination ${toCode} indisponible.`);return true;}
   input.value=String(qty);
-  setVoiceStatus(`${qty} plant${qty>1?'s':''} de ${varietyName(eligible[0].culture.varietyId)} : ${fromCode} → ${toCode}. Vérifie, puis confirme sur l’écran.`);
-  voiceAcknowledge(`Déplacement de ${qty} plant préparé. À confirmer.`);
+  setVoiceStatus(`${qty} plant${qty>1?'s':''} de ${varietyName(eligible[0].culture.varietyId)} : ${fromCode} → ${toCode}. À confirmer à l’écran.`);
+  voiceAcknowledge('Déplacement préparé. À confirmer.');
   return true;
 }
 
-// Assistant rapide : aucune opération destructive n'est validée oralement.
 function startSmartVoice(){
   startRecognition({prompt:'Dis « L14 déplace vers S31 », « déplace 5 plants de S24 vers L14 », « récolte 350 grammes S24 »…',
     onResult:handleSmartVoice});
@@ -3898,7 +3878,7 @@ function renderV21(){renderQuickChambers();renderClientRequests();renderRequestD
 const cloud={
   session:null,user:null,greenhouseId:'',greenhouseName:'Serre principale',
   role:'',team:[],activity:[],state:'login',message:'',syncing:false,
-  linked:false,syncTimer:null,syncSoonTimer:null,lastSync:''
+  linked:false,syncTimer:null,syncSoonTimer:null,lastSync:'',hasConflicts:0,hasLegacyQueue:0,connecting:false
 };
 
 const ENTITY_COLLECTIONS={
@@ -3924,6 +3904,8 @@ function openSyncDB(){
     req.onupgradeneeded=()=>{
       const d=req.result;
       if(!d.objectStoreNames.contains('queue')) d.createObjectStore('queue',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('legacyQueue')) d.createObjectStore('legacyQueue',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('conflicts')) d.createObjectStore('conflicts',{keyPath:'key'});
       if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta',{keyPath:'key'});
       if(!d.objectStoreNames.contains('backups')){
         const store=d.createObjectStore('backups',{keyPath:'id'});
@@ -3990,11 +3972,64 @@ function localSnapshotRecords(){
   });
   return rows;
 }
+// Comparaison déterministe : PostgreSQL jsonb réordonne les propriétés des objets.
+// Sans normalisation, chaque lecture cloud ressemblait à une modification locale (V22).
+function stableCloudJSON(value){
+  if(value===undefined)return 'null';
+  if(Array.isArray(value))return '['+value.map(v=>stableCloudJSON(v)).join(',')+']';
+  if(value&&typeof value==='object')return '{'+Object.keys(value).sort()
+    .filter(k=>value[k]!==undefined)
+    .map(k=>JSON.stringify(k)+':'+stableCloudJSON(value[k])).join(',')+'}';
+  return JSON.stringify(value);
+}
 function recordMap(rows){
   const m={};
-  rows.forEach(r=>m[`${r.entity_type}|${r.record_key}`]=JSON.stringify(r.data));
+  rows.forEach(r=>m[`${r.entity_type}|${r.record_key}`]=stableCloudJSON(r.data));
   return m;
 }
+// La file ancienne V22 n'est pas fiable : elle pouvait contenir les 150 fiches,
+// réécrites en boucle sans modification véritable. On la conserve hors émission.
+async function prepareV25Recovery(){
+  if(await metaGet('v25Prepared',false)){
+    cloud.hasLegacyQueue=(await idbAll('legacyQueue')).length;
+    cloud.hasConflicts=(await idbAll('conflicts')).length;
+    return;
+  }
+  // Conserver tous les snapshots historiques, même au-delà de la limite habituelle.
+  await idbPut('meta',{key:'v25PinnedBackupIds',value:(await idbAll('backups')).map(x=>x.id)});
+  await storeLocalBackup(backupEnvelope(),'avant-correction-V25');
+  const rawBase=await metaGet('baseSnapshot',{});
+  if(Object.keys(rawBase||{}).length){
+    const rows=[];
+    for(const [key,raw] of Object.entries(rawBase)){
+      try{
+        const sep=key.indexOf('|');
+        if(sep<1)continue;
+        rows.push({entity_type:key.slice(0,sep),record_key:key.slice(sep+1),data:JSON.parse(raw)});
+      }catch(_){}
+    }
+    if(rows.length){
+      const savedDb=db;
+      try{db=dbFromRemote(rows);await metaSet('baseSnapshot',recordMap(localSnapshotRecords()));}
+      finally{db=savedDb;}
+    }
+  }
+  const old=await idbAll('queue');
+  for(const op of old) await idbPut('legacyQueue',op);
+  for(const op of old) await idbDelete('queue',op.key);
+  await idbPut('meta',{key:'v25Prepared',value:true});
+  cloud.hasLegacyQueue=old.length;
+  cloud.hasConflicts=(await idbAll('conflicts')).length;
+}
+async function exportSyncRecovery(){
+  const old=await idbAll('legacyQueue');
+  const conflicts=await idbAll('conflicts');
+  const file={exportedAt:new Date().toISOString(),version:APP_VERSION,
+    notice:'Fichier de diagnostic, ne pas importer directement comme sauvegarde',
+    legacyV24Pending:old,concurrentConflicts:conflicts};
+  downloadJsonObject(file,`gestion-serre-secours-synchronisation-${todayISO()}.json`);
+}
+
 function hasMeaningfulLocalData(){
   if((db.cultures||[]).length||(db.tasks||[]).length||(db.sales||[]).length||(db.costs||[]).length||(db.chamberHistory||[]).length||(db.harvests||[]).length||(db.inspections||[]).length||(db.clientRequests||[]).length||(db.waterReadings||[]).length||(db.cropPhotos||[]).length) return true;
   if((db.stock||[]).some(s=>Number(s.qty||0)>0||s.supplier||s.lot)) return true;
@@ -4005,28 +4040,40 @@ function hasMeaningfulLocalData(){
 async function pendingCount(){ return (await idbAll('queue')).length; }
 
 async function queueChangesAgainstBase(forceAll=false){
-  if(!cloud.greenhouseId||!cloud.linked) return;
+  if(!cloud.greenhouseId||!cloud.linked)return;
   const current=localSnapshotRecords();
   const currentMap=recordMap(current);
   const base=forceAll?{}:await metaGet('baseSnapshot',{});
+  const versions=forceAll?{}:await metaGet('baseVersions',{});
 
   for(const row of current){
     const k=`${row.entity_type}|${row.record_key}`;
-    if(forceAll || base[k]!==currentMap[k]){
-      await idbPut('queue',{
-        key:k,op:'upsert',entity_type:row.entity_type,record_key:row.record_key,
-        data:row.data,stamp:Date.now()+Math.random()
-      });
+    if(!forceAll && base[k]===currentMap[k]){
+      // L'utilisateur a annulé sa modification avant l'envoi : ne pas envoyer
+      // l'ancienne opération restée dans la file.
+      if(await idbGet('queue',k))await idbDelete('queue',k);
+      continue;
     }
+    const existing=await idbGet('queue',k);
+    // Surtout ne pas remplacer la version de départ d'une opération hors ligne :
+    // sinon une reconnexion permettrait d'écraser la modification de Carine.
+    if(existing?.op==='upsert' && stableCloudJSON(existing.data)===currentMap[k])continue;
+    await idbPut('queue',{
+      key:k,op:'upsert',entity_type:row.entity_type,record_key:row.record_key,
+      data:row.data,expectedVersion:existing?existing.expectedVersion:(versions[k]??null),
+      stamp:Date.now()+Math.random()
+    });
   }
   for(const k of Object.keys(base)){
-    if(!(k in currentMap)){
-      const [entity_type,...rest]=k.split('|');
-      await idbPut('queue',{
-        key:k,op:'delete',entity_type,record_key:rest.join('|'),
-        stamp:Date.now()+Math.random()
-      });
-    }
+    if(k in currentMap)continue;
+    const existing=await idbGet('queue',k);
+    if(existing?.op==='delete')continue;
+    const [entity_type,...rest]=k.split('|');
+    await idbPut('queue',{
+      key:k,op:'delete',entity_type,record_key:rest.join('|'),
+      expectedVersion:existing?existing.expectedVersion:(versions[k]??null),
+      stamp:Date.now()+Math.random()
+    });
   }
   updateSyncIndicator();
 }
@@ -4134,6 +4181,7 @@ async function updateSyncIndicator(){
   if(!cloud.session){el.classList.add('login');el.textContent='⚪ Connexion';return}
   if(!navigator.onLine){el.classList.add('offline');el.textContent=`🔴 Hors ligne${count?` · ${count} en attente`:''}`;return}
   if(cloud.syncing){el.classList.add('syncing');el.textContent='🔵 Synchronisation…';return}
+  if(cloud.hasConflicts){el.classList.add('pending');el.textContent=`🟠 ${cloud.hasConflicts} conflit(s)`;return}
   if(count){el.classList.add('pending');el.textContent=`🟡 ${count} en attente`;return}
   if(cloud.linked){el.classList.add('synced');el.textContent='🟢 Synchronisé';return}
   el.classList.add('pending');el.textContent='🟡 À initialiser';
@@ -4209,33 +4257,106 @@ function applyPendingToDb(target,pending){
   return migrateData(target);
 }
 async function cacheBaseFromRows(rows){
-  await metaSet('baseSnapshot',recordMap((rows||[]).map(r=>({entity_type:r.entity_type,record_key:r.record_key,data:r.data}))));
+  // Comparer l'état LOCAL normalisé au cloud normalisé (et non JSON brut
+  // Postgres contre JS). Cette opération ne doit pas changer la session locale.
+  const oldDb=db;
+  let base;
+  try{
+    db=dbFromRemote(rows);
+    base=recordMap(localSnapshotRecords());
+  }finally{db=oldDb;}
+  const versions={};
+  (rows||[]).forEach(r=>versions[`${r.entity_type}|${r.record_key}`]=Number(r.version));
+  await metaSet('baseSnapshot',base);
+  await metaSet('baseVersions',versions);
+}
+async function archiveSyncConflict(op,reason){
+  await idbPut('conflicts',{...op,reason,detectedAt:new Date().toISOString()});
+  const current=await idbGet('queue',op.key);
+  if(current?.stamp===op.stamp)await idbDelete('queue',op.key);
+  cloud.hasConflicts=(await idbAll('conflicts')).length;
+}
+async function reconcileUnversionedQueue(rows){
+  const pending=await idbAll('queue');
+  if(!pending.length)return;
+  const remote=new Map(rows.map(r=>[`${r.entity_type}|${r.record_key}`,r]));
+  const normalizedCurrent=dbFromRemote(rows);
+  const savedDb=db;
+  let remoteCanonical;
+  try{db=normalizedCurrent;remoteCanonical=recordMap(localSnapshotRecords());}
+  finally{db=savedDb;}
+  const oldBase=await metaGet('baseSnapshot',{});
+  for(const op of pending){
+    if(op.expectedVersion!==null&&op.expectedVersion!==undefined)continue;
+    const r=remote.get(op.key),baseline=oldBase[op.key],fresh=remoteCanonical[op.key];
+    if(r){
+      if(baseline!==undefined && baseline===fresh){
+        op.expectedVersion=Number(r.version);
+        await idbPut('queue',op);
+      }else await archiveSyncConflict(op,'Ancienne version sans référence fiable, donnée distante divergente.');
+    }else if(baseline!==undefined){
+      await archiveSyncConflict(op,'L’enregistrement d’origine a disparu du cloud.');
+    }else if(op.op==='delete'){
+      await archiveSyncConflict(op,'Suppression sans version de référence.');
+    }
+    // A new row without baseline may be safely inserted if absent from server.
+  }
 }
 
 async function pushQueue(){
   const entries=await idbAll('queue');
   for(const op of entries){
-    if(op.op==='upsert'){
-      await api(
-        `records?on_conflict=greenhouse_id%2Centity_type%2Crecord_key`,
-        {method:'POST',prefer:'resolution=merge-duplicates,return=minimal',
-         body:{greenhouse_id:cloud.greenhouseId,entity_type:op.entity_type,record_key:op.record_key,data:op.data,deleted:false}}
-      );
+    let savedVersion=null;
+    const idQuery=`greenhouse_id=eq.${encodeURIComponent(cloud.greenhouseId)}`+
+      `&entity_type=eq.${encodeURIComponent(op.entity_type)}`+
+      `&record_key=eq.${encodeURIComponent(op.record_key)}`;
+    if(op.expectedVersion!==null && op.expectedVersion!==undefined){
+      // Compare-and-swap atomique via la version du serveur : une modification
+      // simultanée de l'autre appareil ne peut jamais être écrasée en silence.
+      const changed=await api(`records?${idQuery}&version=eq.${Number(op.expectedVersion)}&deleted=eq.false&select=record_key,version`,{
+        method:'PATCH',prefer:'return=representation',
+        body:op.op==='upsert'?{data:op.data,deleted:false}:{deleted:true}
+      });
+      if(!Array.isArray(changed)||changed.length!==1){
+        await archiveSyncConflict(op,'La fiche a changé sur un autre appareil depuis cette saisie.');
+        continue;
+      }
+      savedVersion=Number(changed[0].version);
+    }else if(op.op==='upsert'){
+      // Nouveau record : INSERT simple, surtout pas UPSERT qui remplace la version distante.
+      try{
+        const inserted=await api('records?select=record_key,version',{
+          method:'POST',prefer:'return=representation',
+          body:{greenhouse_id:cloud.greenhouseId,entity_type:op.entity_type,
+            record_key:op.record_key,data:op.data,deleted:false}
+        });
+        savedVersion=Number(inserted?.[0]?.version||1);
+      }catch(e){
+        if(/23505|duplicate key|409|conflict|unique constraint/i.test(String(e.message||e))){
+          await archiveSyncConflict(op,'La fiche existe déjà dans le cloud.');
+          continue;
+        }
+        throw e;
+      }
     }else{
-      await api(
-        `records?greenhouse_id=eq.${encodeURIComponent(cloud.greenhouseId)}&entity_type=eq.${encodeURIComponent(op.entity_type)}&record_key=eq.${encodeURIComponent(op.record_key)}`,
-        {method:'PATCH',prefer:'return=minimal',body:{deleted:true}}
-      );
+      await archiveSyncConflict(op,'Suppression sans version de référence : opération conservée pour vérification.');
+      continue;
     }
     const current=await idbGet('queue',op.key);
-    if(current?.stamp===op.stamp) await idbDelete('queue',op.key);
+    if(current?.stamp===op.stamp)await idbDelete('queue',op.key);
+    else if(current&&Number.isFinite(savedVersion)){
+      // Une nouvelle modification a été faite pendant l'envoi précédent :
+      // sa base doit désormais être la version effectivement sauvegardée.
+      current.expectedVersion=savedVersion;
+      await idbPut('queue',current);
+    }
   }
 }
 async function pullCloud(){
   const rows=await fetchRemoteRecords();
   const pending=await idbAll('queue');
   let next=dbFromRemote(rows);
-  if(pending.length) next=applyPendingToDb(next,pending);
+  if(pending.length)next=applyPendingToDb(next,pending);
   db=next;
   localStorage.setItem(KEY,JSON.stringify(db));
   await cacheBaseFromRows(rows);
@@ -4272,7 +4393,7 @@ function renderActivity(){
 }
 
 async function syncNow(manual=true){
-  if(cloud.syncing)return;
+  if(cloud.syncing||cloud.connecting)return;
   if(!cloud.session){setSyncState('login','Connexion requise');return}
   if(!navigator.onLine){setSyncState('offline','Hors connexion');return}
   if(!cloud.greenhouseId)return;
@@ -4284,7 +4405,9 @@ async function syncNow(manual=true){
     await pushQueue();
     await pullCloud();
     await refreshActivity();
-    setSyncState('synced','Synchronisé');
+    cloud.hasConflicts=(await idbAll('conflicts')).length;
+    if(cloud.hasConflicts)setSyncState('pending',`${cloud.hasConflicts} conflit(s) de synchronisation conservé(s)`);
+    else setSyncState('synced','Synchronisé');
   }catch(e){
     console.warn('Sync error',e);
     setSyncState('pending',e.message||'Synchronisation en attente');
@@ -4301,6 +4424,7 @@ async function migrateLocalToCloud(){
   cloud.linked=true;
   localStorage.setItem(CLOUD_LINK_KEY,cloud.greenhouseId);
   await metaSet('baseSnapshot',{});
+  await metaSet('baseVersions',{});
   await queueChangesAgainstBase(true);
   await syncNow(true);
   renderSyncPanel();
@@ -4312,7 +4436,8 @@ async function loadCloudInstead(){
 }
 
 async function connectCloud(){
-  if(!cloud.session||!navigator.onLine){updateSyncIndicator();return}
+  if(cloud.connecting||!cloud.session||!navigator.onLine){updateSyncIndicator();return}
+  cloud.connecting=true;
   try{
     setSyncState('syncing','Connexion à la Serre principale…');
     await ensureSession();
@@ -4327,6 +4452,7 @@ async function connectCloud(){
     cloud.greenhouseId=membership.greenhouse_id;cloud.role=membership.role;
     await loadTeam();await loadGreenhouseName();
     const rows=await fetchRemoteRecords();
+    await reconcileUnversionedQueue(rows);
     const linkedId=localStorage.getItem(CLOUD_LINK_KEY);
     cloud.linked=linkedId===cloud.greenhouseId;
 
@@ -4337,7 +4463,8 @@ async function connectCloud(){
       if(pending.length) next=applyPendingToDb(next,pending);
       db=next;localStorage.setItem(KEY,JSON.stringify(db));
       await cacheBaseFromRows(rows);
-      setSyncState('synced','Serre partagée chargée');
+      if(cloud.hasConflicts)setSyncState('pending',`${cloud.hasConflicts} conflit(s) conservé(s)`);
+      else setSyncState('synced','Serre partagée chargée');
       await refreshActivity();
       renderAll();
       scheduleSync(400);
@@ -4349,7 +4476,7 @@ async function connectCloud(){
   }catch(e){
     console.warn(e);
     setSyncState('pending',e.message||'Connexion au cloud impossible');
-  }
+  }finally{cloud.connecting=false;}
 }
 
 function renderSyncPanel(){
@@ -4373,6 +4500,13 @@ function renderSyncPanel(){
     }else{
       html+=`<div class="syncLine"><span class="syncDot ok"></span><b>Synchronisation automatique active</b></div>
         <p class="small muted">Dernière synchronisation : ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString('fr-FR'):'pas encore'}.</p>`;
+    }
+    if(cloud.hasLegacyQueue||cloud.hasConflicts){
+      html+=`<div class="cloudWarning"><b>🛟 Protection des données V25</b><br>
+        ${cloud.hasLegacyQueue?`${cloud.hasLegacyQueue} ancienne(s) opération(s) V24 mise(s) en sécurité sans envoi automatique.<br>`:''}
+        ${cloud.hasConflicts?`${cloud.hasConflicts} conflit(s) d'écriture conservé(s) sans écrasement.<br>`:''}
+        Ces données sont archivées localement sur cet appareil : ne videz pas le stockage du navigateur.</div>
+        <button class="secondary" onclick="exportSyncRecovery()">⬇ Exporter les données de récupération</button>`;
     }
     html+=`<div class="toolbar"><button class="secondary" onclick="logout()">Se déconnecter</button></div>`;
   }
@@ -4471,7 +4605,9 @@ function downloadJsonObject(obj,filename){
 }
 async function trimLocalBackups(){
   const all=(await idbAll('backups')).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
-  for(const old of all.slice(MAX_LOCAL_BACKUPS)) await idbDelete('backups',old.id);
+  const pinned=new Set(await metaGet('v25PinnedBackupIds',[]));
+  const keep=all.filter(x=>!pinned.has(x.id)&&x.kind!=='avant-correction-V25');
+  for(const old of keep.slice(MAX_LOCAL_BACKUPS)) await idbDelete('backups',old.id);
 }
 async function storeLocalBackup(env,kind='manual'){
   const item={
@@ -4490,9 +4626,7 @@ async function storeLocalBackup(env,kind='manual'){
 }
 async function createCompleteBackup(download=true){
   try{
-    if(navigator.onLine&&cloud.session&&cloud.linked){
-      await syncNow(false);
-    }
+    // Sauvegarder immédiatement l'état local; une synchronisation préalable pourrait le remplacer.
     const env=backupEnvelope();
     await storeLocalBackup(env,'manual');
     if(download){
@@ -4539,8 +4673,8 @@ async function renderBackupPanel(){
         Dernier snapshot local : <b>${formatBackupDate(lastLocal)}</b><br>
         Dernier fichier téléchargé depuis cet appareil : <b>${formatBackupDate(lastExternal)}</b>
       </div>
-      ${all.length?`<details class="backupHistory"><summary><b>Historique local (${Math.min(all.length,MAX_LOCAL_BACKUPS)})</b></summary>
-        ${all.slice(0,MAX_LOCAL_BACKUPS).map(b=>`<div class="backupItem">
+      ${all.length?`<details class="backupHistory"><summary><b>Historique local (${all.length})</b></summary>
+        ${all.map(b=>`<div class="backupItem">
           <b>${formatBackupDate(b.createdAt)}</b> · ${b.kind==='auto'?'automatique':'manuel'} · V${b.appVersion||'?'}<br>
           <span class="muted small">${b.counts?.cultures||0} cultures · ${b.counts?.harvests||0} récoltes · ${b.counts?.tasks||0} tâches · ${b.counts?.sales||0} ventes</span>
           <div class="backupActions">
@@ -4664,7 +4798,18 @@ async function init(){
     cloud.lastSync=await metaGet('lastSync','');
   }catch(_){}
 
+  // Toujours protéger les opérations V22 et créer une sauvegarde AVANT tout réseau.
+  try{await prepareV25Recovery();}
+  catch(e){
+    console.error('Préservation V25 impossible',e);
+    alert('Sécurité : impossible de préserver la file V24. Synchronisation suspendue. Ne videz pas les données du navigateur.');
+    return;
+  }
   const hasSession=loadStoredSession();
+  if(hasSession){
+    const linkedId=localStorage.getItem(CLOUD_LINK_KEY)||'';
+    if(linkedId){cloud.greenhouseId=linkedId;cloud.linked=true;}
+  }
   startAutoSync();
 
   if(hasSession){

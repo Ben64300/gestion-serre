@@ -1,4 +1,4 @@
-const CACHE='gestion-serre-v24-ventes-achats-1';
+const CACHE='gestion-serre-v25-synchronisation-1';
 const ASSETS=['./','./index.html','./manifest.json','./README.txt','./qr-chambres.pdf'];
 
 self.addEventListener('install',event=>{
