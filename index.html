@@ -597,7 +597,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 27;
+const APP_VERSION = 28;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -2733,7 +2733,7 @@ function chartBarsHtml(data){
   const max=Math.max(...data.map(x=>x.value),0.001);
   return `<div class="harvestChart">${data.map(x=>`<div class="harvestChartRow"><div title="${esc(x.label)}">${esc(x.label)}</div><div class="harvestBarTrack"><div class="harvestBarFill" style="width:${Math.max(2,x.value/max*100)}%"></div></div><b>${x.value.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</b></div>`).join('')}</div>`;
 }
-function lineChartHtml(arr){
+function v27LegacyLineChartHtml(arr){
   const daily={};arr.forEach(h=>{const kg=harvestMassKg(h);if(kg!==null)daily[h.date]=(daily[h.date]||0)+kg});
   const pts=Object.entries(daily).sort((a,b)=>a[0].localeCompare(b[0]));
   if(pts.length<2)return '<div class="small muted">Il faut au moins deux dates avec une récolte en kg/g pour afficher la courbe d’évolution.</div>';
@@ -2742,6 +2742,39 @@ function lineChartHtml(arr){
   const points=coords.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   return `<div class="harvestLineWrap"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Évolution des récoltes en kilogrammes"><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="harvestLineGrid"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" class="harvestLineGrid"/><polyline points="${points}" class="harvestLine"/>${coords.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4" class="harvestDot"><title>${fmt(p.d)} : ${p.v.toLocaleString('fr-FR',{maximumFractionDigits:2})} kg</title></circle>`).join('')}</svg><div class="small muted">${fmt(pts[0][0])} → ${fmt(pts[pts.length-1][0])} · survole/touche les points pour la valeur</div></div>`;
 }
+/* V28 : infobulle tactile du suivi des récoltes, sans dépendance externe. */
+function v28HarvestSelectDot(dot){
+  if(!dot)return;
+  const svg=dot.ownerSVGElement;
+  if(!svg)return;
+  svg.querySelectorAll('.harvestDot').forEach(point=>{
+    point.setAttribute('r',point===dot?'7':'4');
+    point.setAttribute('stroke',point===dot?'#ffffff':'none');
+    point.setAttribute('stroke-width',point===dot?'2':'0');
+  });
+  const out=svg.closest('.harvestLineWrap')?.querySelector('.harvestPointValue');
+  if(out)out.textContent=dot.getAttribute('data-label')||'Valeur non disponible';
+}
+function v28HarvestSelectFromEvent(event,svg){
+  if(!svg||!event||typeof event.clientX!=='number')return;
+  const rect=svg.getBoundingClientRect();
+  if(!rect.width)return;
+  const relativeX=(event.clientX-rect.left)*640/rect.width;
+  const dots=[...svg.querySelectorAll('.harvestDot')];
+  let nearest=null,dist=Infinity;
+  for(const dot of dots){const x=Number(dot.getAttribute('cx'));if(!Number.isFinite(x))continue;const d=Math.abs(x-relativeX);if(d<dist){nearest=dot;dist=d;}}
+  if(nearest)v28HarvestSelectDot(nearest);
+}
+function lineChartHtml(arr){
+  const daily={};arr.forEach(h=>{const kg=harvestMassKg(h);if(kg!==null&&h.date)daily[h.date]=(daily[h.date]||0)+kg});
+  const pts=Object.entries(daily).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(pts.length<2)return '<div class="small muted">Il faut au moins deux dates avec une récolte en kg/g pour afficher la courbe d’évolution.</div>';
+  const w=640,h=170,pad=26,max=Math.max(...pts.map(x=>x[1]),0.001),minDate=new Date(pts[0][0]+'T12:00:00'),maxDate=new Date(pts[pts.length-1][0]+'T12:00:00'),span=Math.max(1,maxDate-minDate);
+  const coords=pts.map(([d,v])=>{const x=pad+(new Date(d+'T12:00:00')-minDate)/span*(w-pad*2),y=h-pad-(v/max)*(h-pad*2);return {d,v,x,y};});
+  const points=coords.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  return `<div class="harvestLineWrap"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Évolution des récoltes en kilogrammes. Touchez la courbe pour afficher la valeur." onpointerdown="v28HarvestSelectFromEvent(event,this)" onpointermove="if(event.pointerType==='mouse')v28HarvestSelectFromEvent(event,this)"><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="harvestLineGrid"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" class="harvestLineGrid"/><polyline points="${points}" class="harvestLine"/>${coords.map(p=>{const label=fmt(p.d)+' : '+p.v.toLocaleString('fr-FR',{maximumFractionDigits:2})+' kg';return `<circle cx="${p.x}" cy="${p.y}" r="4" class="harvestDot" tabindex="0" role="button" data-label="${label}" aria-label="${label}" onfocus="v28HarvestSelectDot(this)" onclick="v28HarvestSelectDot(this)"><title>${label}</title></circle>`;}).join('')}</svg><div class="harvestPointValue" role="status" aria-live="polite" style="min-height:42px;padding:9px 12px;border-radius:9px;border:1px solid #c8e0d0;background:#f3faf5;font-weight:700;color:#285943;margin:5px 0">Touchez un endroit de la courbe pour voir la date et la valeur (kg).</div><div class="small muted">${fmt(pts[0][0])} → ${fmt(pts[pts.length-1][0])} · touchez la courbe ou survolez-la pour la valeur</div></div>`;
+}
+
 function renderHarvestCharts(arr){
   const host=getEl('harvestCharts');if(!host)return;
   const byVar={};arr.forEach(h=>{const kg=harvestMassKg(h);if(kg!==null)byVar[h.varietyId]=(byVar[h.varietyId]||0)+kg});
@@ -4027,7 +4060,7 @@ function v27ValidateHarvest(c,qty,unit,chamberNumber,editId){
   if(!editId&&db.harvests.some(h=>h.date===getEl('hdate')?.value&&h.cultureId===c.id&&Number(h.chamberNumber||0)===Number(chamberNumber||0)&&h.unit===unit&&Number(h.qty)===qty))alerts.push('Une récolte identique (même jour, lot, chambre et poids) est déjà enregistrée.');
   return !alerts.length || confirm('⚠ Vérification de la récolte :\n\n'+alerts.join('\n')+'\n\nConfirmer malgré ces points ?');
 }
-function v27LocalReply(raw){
+function v27LegacyLocalReply(raw){
   const q=String(raw||'').toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const active=db.cultures.filter(c=>c.status==='Active');
   const total=active.reduce((s,c)=>s+Number(c.qty||0),0);
@@ -4080,17 +4113,123 @@ function v27LocalReply(raw){
   }
   return `Je peux déjà interroger tes données locales, même sans connexion :\n• « Combien de plants ? »\n• « Que faire aujourd'hui ? »\n• « Quels problèmes sont signalés ? »\n• « Quelles demandes clients ? »\n• « Quelles chambres sont libres ? »\n• « S24 »\n\nPour un conseil agronomique libre, active « IA en ligne » lorsque le service sécurisé sera configuré.`;
 }
+/* V28 : synthèse d'inventaire locale, sans API et sans modification des données. */
+function v28Normalize(value){
+  return String(value == null ? '' : value).toLocaleLowerCase('fr').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/œ/g,'oe').replace(/æ/g,'ae')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+function v28InventoryAnswer(raw){
+  const q=v28Normalize(raw), words=q.split(' ').filter(Boolean);
+  if(!q)return null;
+  const stop=new Set('combien de des du une un les le la l a au aux mes mon ma notre nos vos votre pour par dans sur chez avec sont est ou quelles quels quelle quel qui quoi combien reste t il ai as avons en nombre quantite total tous toutes tout plants plant plante plantes actif actifs active actives variete varietes culture cultures chambre chambres systeme systemes growstream bloc blocs stock inventaire emplacement emplacements localisation localises situe situes trouves trouve trouver repartition repartis reparti liste afficher montre moi peux tu donne donnez combien actuellement encore present presents serres serre'.split(' '));
+  const families=[
+    {key:'laitue',question:['laitue','laitues','salade','salades'],label:['laitue','salade'],title:'Laitues'},
+    {key:'persil',question:['persil','persils'],label:['persil'],title:'Persil'},
+    {key:'mizuna',question:['mizuna','mizunas'],label:['mizuna'],title:'Mizuna'},
+    {key:'cerfeuil',question:['cerfeuil','cerfeuils'],label:['cerfeuil'],title:'Cerfeuil'},
+    {key:'blette',question:['blette','blettes','bette','bettes'],label:['blette','bette'],title:'Blettes'},
+    {key:'pakchoi',question:['pak','pakchoi','pakchois','choi','chois'],label:['pak choi','pakchoi','pak cho','pakcho'],title:'Pak choï'},
+    {key:'kale',question:['kale','kales'],label:['kale'],title:'Kale'},
+    {key:'moutarde',question:['moutarde','moutardes'],label:['moutarde'],title:'Moutardes'},
+    {key:'cresson',question:['cresson','cressons'],label:['cresson'],title:'Cressons'},
+    {key:'basilic',question:['basilic','basilics'],label:['basilic'],title:'Basilic'},
+    {key:'roquette',question:['roquette','roquettes'],label:['roquette'],title:'Roquette'},
+    {key:'mache',question:['mache','maches'],label:['mache'],title:'Mâche'},
+    {key:'chou',question:['chou','choux'],label:['chou'],title:'Choux'}
+  ];
+  const family=families.find(f=>f.question.some(t=>words.includes(t)));
+  const familyTerms=new Set(families.flatMap(f=>f.question));
+  const terms=words.filter(w=>w.length>=4&&!stop.has(w)&&!familyTerms.has(w));
+  const data=Array.isArray(db.varieties)?db.varieties:[];
+  const labelOf=v=>v28Normalize(String(v.name||'')+' '+String(v.species||''));
+  const termMatch=(label,t)=>label.split(' ').some(w=>w===t||(t.length>=5&&w.startsWith(t))||(t.length>=6&&t.endsWith('s')&&w===t.slice(0,-1)));
+  let matched=data.filter(v=>{
+    const label=labelOf(v);
+    if(family)return family.label.some(k=>label.includes(k));
+    return terms.some(t=>termMatch(label,t));
+  });
+  if(family&&terms.length){
+    const refined=matched.filter(v=>terms.some(t=>termMatch(labelOf(v),t)));
+    if(refined.length)matched=refined;
+  }
+  const inventoryIntent=/\b(combien|nombre|quantite|total|inventaire|variete|varietes|repartition|repartis|reparti|localisation|emplacement|emplacements|chambre|chambres|plants|plantes|cultures|systeme|systemes|stock|ou|reste|liste)\b/.test(q);
+  // Les autres menus de la V27 gardent leur comportement existant.
+  if(/\b(probleme|problemes|tache|taches|aujourd|planning|commande|commandes|clients|client|bassin|nutrition|maladie|altise|puceron)\b/.test(q) && !/\b(combien de plants|nombre de plants)\b/.test(q))return null;
+  if(/\b(stock|stocks|libre|libres|place|places|vide|vides)\b/.test(q)&&!family&&matched.length===0)return null;
+  const chamber=parseChamberCode(raw);
+  const sysMatch=q.match(/\b(?:systeme|growstream|bloc|en|dans|sur)\s+(?:le\s+)?([sl])\b/);
+  const wantedPrefix=sysMatch?sysMatch[1].toUpperCase():null;
+  if(chamber&&!family&&matched.length===0)return null;
+  if(matched.length===0&&!inventoryIntent&&!wantedPrefix)return null;
+  const selectedIds=new Set(matched.map(v=>v.id));
+  const selected=(db.cultures||[]).filter(c=>c.status==='Active'&&(matched.length===0||selectedIds.has(c.varietyId)));
+  const grouped=new Map(),anomalies=[],chambers=new Set();
+  let plants=0,keptLots=0;
+  for(const c of selected){
+    const allAlloc=allocationsOf(c),allocSum=allAlloc.reduce((n,a)=>n+Number(a.qty||0),0);
+    const lotQty=Number(c.qty||0);
+    if(!chamber&&!wantedPrefix&&Math.abs(lotQty-allocSum)>0.001){
+      anomalies.push(varietyName(c.varietyId)+' : '+lotQty+' au lot contre '+allocSum+' affectés en chambres');
+    }
+    const picked=allAlloc.filter(a=>{
+      if(chamber&&(c.blockId!==chamber.blockId||Number(a.chamberNumber)!==chamber.n))return false;
+      if(wantedPrefix&&blockPrefix(c.blockId).toUpperCase()!==wantedPrefix)return false;
+      return true;
+    });
+    if((chamber||wantedPrefix)&&picked.length===0)continue;
+    keptLots++;
+    const qty=(chamber||wantedPrefix)?picked.reduce((n,a)=>n+Number(a.qty||0),0):lotQty;
+    plants+=qty;
+    const label=varietyName(c.varietyId),key=v28Normalize(label);
+    if(!grouped.has(key))grouped.set(key,{label,qty:0,locations:new Map(),ids:new Set()});
+    const g=grouped.get(key);g.qty+=qty;g.ids.add(c.varietyId);
+    for(const a of picked){
+      const loc=chamberCode(c.blockId,a.chamberNumber);
+      chambers.add(loc);g.locations.set(loc,(g.locations.get(loc)||0)+Number(a.qty||0));
+    }
+  }
+  const list=[...grouped.values()].sort((a,b)=>b.qty-a.qty||a.label.localeCompare(b.label,'fr'));
+  const scope=chamber?' en '+chamberCode(chamber.blockId,chamber.n):wantedPrefix?' dans le système '+wantedPrefix:'';
+  const title=family?family.title:matched.length===1?varietyName(matched[0].id):matched.length?'Cultures correspondantes':'Inventaire';
+  const summary=title+scope+' : '+plants+' plant'+(plants>1?'s':'')+' actif'+(plants>1?'s':'')+', '+list.length+' variété'+(list.length>1?'s':'')+' distincte'+(list.length>1?'s':'')+', '+keptLots+' lot'+(keptLots>1?'s':'')+' et '+chambers.size+' chambre'+(chambers.size>1?'s':'')+'.';
+  if(!plants){
+    if(matched.length)return title+scope+' : aucun plant actif enregistré.';
+    return 'Aucune culture active enregistrée'+scope+'.';
+  }
+  const detailed=!!family||list.length<=6||/\b(ou|chambre|chambres|emplacement|emplacements|localisation|repartition)\b/.test(q);
+  const lines=list.slice(0,15).map(g=>{
+    let line='• '+g.label+' : '+g.qty+' plant'+(g.qty>1?'s':'');
+    if(detailed){
+      const locs=[...g.locations.entries()].sort((a,b)=>a[0].localeCompare(b[0],'fr',{numeric:true}));
+      const limit=list.length<=6?24:6;
+      line+=' ('+locs.slice(0,limit).map(([where,count])=>where+' : '+count).join(' · ')+(locs.length>limit?' · …':'')+')';
+    }
+    return line;
+  });
+  if(list.length>15)lines.push('… '+(list.length-15)+' autres variétés non détaillées.');
+  const duplicateNames=list.filter(g=>g.ids.size>1);
+  if(duplicateNames.length)lines.push('ℹ Fiches de variété distinctes portant le même nom, regroupées ici : '+duplicateNames.slice(0,4).map(g=>g.label).join(', ')+'. À vérifier, sans correction automatique.');
+  if(anomalies.length)lines.push('⚠ Écarts entre quantités des lots et affectations en chambres : '+anomalies.slice(0,3).join(' ; ')+(anomalies.length>3?' ; …':'')+'.');
+  lines.push('Données enregistrées dans Gestion Serre, sans changement automatique.');
+  return summary+'\n'+lines.join('\n');
+}
+function v27LocalReply(raw){
+  const answer=v28InventoryAnswer(raw);
+  return answer===null?v27LegacyLocalReply(raw):answer;
+}
+
 function v27AssistantLine(role,text){
   const host=getEl('v27AssistantConversation');if(!host)return;
   const p=document.createElement('div');p.className='v27AssistantLine '+(role==='user'?'v27User':'v27Bot');
   p.textContent=(role==='user'?'Vous : ':'Assistant : ')+text;host.appendChild(p);host.scrollTop=host.scrollHeight;
 }
 function openV27Assistant(){
-  modal(`<h2>🧠 Assistant de la serre</h2><p class="small muted">Le mode local répond à partir des informations déjà enregistrées dans Gestion Serre. Il n'écrit jamais dans les cultures à ta place.</p>
+  modal(`<h2>🧠 Assistant de la serre</h2><p class="small muted">Le mode gratuit regroupe les variétés, calcule les quantités et signale les écarts. Il ne modifie jamais tes cultures.</p>
   <div class="v27AssistantChat" id="v27AssistantConversation"></div>
   <div class="v27CompactActions"><button class="secondary" onclick="v27AskPreset('Que faire aujourd’hui ?')">Aujourd'hui</button><button class="secondary" onclick="v27AskPreset('Combien de plants ?')">Inventaire</button><button class="secondary" onclick="v27AskPreset('Quels problèmes sont signalés ?')">Problèmes</button><button class="secondary" onclick="v27AskPreset('Quelles demandes clients ?')">Clients</button></div>
   <label for="v27AssistantQuestion">Ma question</label><textarea id="v27AssistantQuestion" rows="2" placeholder="Ex. Où est mon persil ? Que dois-je faire aujourd'hui ?"></textarea>
-  <label class="v27Check"><input type="checkbox" id="v27AssistantOnline"><span>Utiliser l'IA en ligne (facultatif) — envoie uniquement ma question et un résumé limité des données nécessaires. Nécessite 4G et activation du service sécurisé, avec coût API éventuel.</span></label>
+  <label class="v27Check"><input type="checkbox" id="v27AssistantOnline" disabled><span>IA en ligne désactivée pour éviter tout frais. L’assistant local amélioré fonctionne gratuitement, même sans 4G.</span></label>
   <div class="v27CompactActions"><button id="v27AssistantSubmit" onclick="v27AskAssistant()">Envoyer</button><button class="secondary" onclick="closeModal()">Fermer</button></div>`);
   v27AssistantLine('assistant','Bonjour ! Je peux répondre sur les cultures, les chambres, les tâches, le bassin et les commandes grâce aux données locales. Que souhaites-tu savoir ?');
 }
