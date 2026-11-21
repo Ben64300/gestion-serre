@@ -253,6 +253,13 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
 .v27AssistantLine{white-space:pre-wrap;font-size:14px;padding:10px;margin:7px 0;border-radius:10px;line-height:1.5;overflow-wrap:anywhere}
 .v27User{background:#e3efe7;margin-left:12%}.v27Bot{background:#fff;border:1px solid var(--border);margin-right:5%}
 .v27Check{display:flex;align-items:flex-start;gap:10px;font-size:12px;margin:13px 0;line-height:1.5}.v27Check input{width:auto;flex:0 0 auto;margin-top:3px}
+
+/* V29 : aides tactiles du copilote local */
+.v29Quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0}
+.v29Quick button{font-size:12px;min-width:0;padding:11px 8px;white-space:normal;line-height:1.2}
+.v29Disclaimer{color:var(--muted);font-size:11px;line-height:1.5;border-top:1px solid var(--border);padding-top:9px;margin-top:10px}
+@media(min-width:760px){.v29Quick{grid-template-columns:repeat(3,minmax(0,1fr));}}
+
 </style>
 </head>
 <body>
@@ -597,7 +604,7 @@ button.waitingYellow{background:#e3b341;color:#3d3000}
    ========================================================= */
 
 // ---------- 1. CONFIGURATION / DONNÉES ----------
-const APP_VERSION = 28;
+const APP_VERSION = 29;
 const KEY = 'gestion_serre_v1';                // conservée pour garder les données existantes
 const LEGACY_KEY = 'en_o_des_cretes_v1';
 const NAV_KEY = 'gestion_serre_current_view';
@@ -4225,13 +4232,25 @@ function v27AssistantLine(role,text){
   p.textContent=(role==='user'?'Vous : ':'Assistant : ')+text;host.appendChild(p);host.scrollTop=host.scrollHeight;
 }
 function openV27Assistant(){
-  modal(`<h2>🧠 Assistant de la serre</h2><p class="small muted">Le mode gratuit regroupe les variétés, calcule les quantités et signale les écarts. Il ne modifie jamais tes cultures.</p>
+  v29Conversation={subject:'',topic:'',history:[],lastAnswer:''};
+  modal(`<h2>🧠 Copilote Gestion Serre · V29</h2>
+  <p class="small muted">Assistant conversationnel gratuit, sans API. Il analyse les données présentes sur ce téléphone et n'écrit jamais dans tes cultures.</p>
   <div class="v27AssistantChat" id="v27AssistantConversation"></div>
-  <div class="v27CompactActions"><button class="secondary" onclick="v27AskPreset('Que faire aujourd’hui ?')">Aujourd'hui</button><button class="secondary" onclick="v27AskPreset('Combien de plants ?')">Inventaire</button><button class="secondary" onclick="v27AskPreset('Quels problèmes sont signalés ?')">Problèmes</button><button class="secondary" onclick="v27AskPreset('Quelles demandes clients ?')">Clients</button></div>
-  <label for="v27AssistantQuestion">Ma question</label><textarea id="v27AssistantQuestion" rows="2" placeholder="Ex. Où est mon persil ? Que dois-je faire aujourd'hui ?"></textarea>
-  <label class="v27Check"><input type="checkbox" id="v27AssistantOnline" disabled><span>IA en ligne désactivée pour éviter tout frais. L’assistant local amélioré fonctionne gratuitement, même sans 4G.</span></label>
-  <div class="v27CompactActions"><button id="v27AssistantSubmit" onclick="v27AskAssistant()">Envoyer</button><button class="secondary" onclick="closeModal()">Fermer</button></div>`);
-  v27AssistantLine('assistant','Bonjour ! Je peux répondre sur les cultures, les chambres, les tâches, le bassin et les commandes grâce aux données locales. Que souhaites-tu savoir ?');
+  <div class="v29Quick" aria-label="Questions fréquentes">
+    <button class="secondary" onclick="v27AskPreset('Fais mon bilan de serre')">🌞 Mon bilan</button>
+    <button class="secondary" onclick="v27AskPreset('Contrôle les anomalies')">🔎 Anomalies</button>
+    <button class="secondary" onclick="v27AskPreset('Quelles commandes clients ?')">📦 Clients</button>
+    <button class="secondary" onclick="v27AskPreset('Quelles récoltes cette semaine ?')">📊 Récoltes</button>
+    <button class="secondary" onclick="v27AskPreset('Analyse les relevés du bassin')">💧 Bassin</button>
+    <button class="secondary" onclick="v27AskPreset('Simule L14 vers S31')">🔄 Déplacement</button>
+  </div>
+  <label for="v27AssistantQuestion">Ta question</label>
+  <textarea id="v27AssistantQuestion" rows="3" maxlength="650" onkeydown="v29InputKey(event)" placeholder="Ex. Combien de laitues ? Puis : et dans le système L ?"></textarea>
+  <div class="v27CompactActions"><button id="v27AssistantSubmit" onclick="v27AskAssistant()">Envoyer</button><button class="secondary" onclick="v29ExportAnswer()">Exporter le bilan</button></div>
+  <div class="v27CompactActions"><button class="secondary" onclick="v29ClearChat()">Nouvelle conversation</button><button class="secondary" onclick="closeModal()">Fermer</button></div>
+  <div class="v29Disclaimer">🔒 Aucune API payante · Aucune modification automatique · Résultats fondés sur les données enregistrées, pas sur un comptage physique.</div>`);
+  v27AssistantLine('assistant','Bonjour ! Je peux analyser les cultures, les récoltes et les commandes, puis répondre à tes questions de suivi.');
+  v27AssistantLine('assistant',v29OpeningSignal());
 }
 function v27AskPreset(question){const input=getEl('v27AssistantQuestion');if(input){input.value=question;v27AskAssistant();}}
 function v27SafeContext(question){
@@ -4249,27 +4268,293 @@ function v27SafeContext(question){
   return context;
 }
 async function v27AskAssistant(){
-  const input=getEl('v27AssistantQuestion'),btn=getEl('v27AssistantSubmit');if(!input||!btn)return;
-  const question=input.value.trim();if(!question)return;
-  if(question.length>650){alert('Limite la question à 650 caractères.');return;}
-  const online=!!getEl('v27AssistantOnline')?.checked;
-  v27AssistantLine('user',question);input.value='';
-  if(!online){v27AssistantLine('assistant',v27LocalReply(question));return;}
-  if(!navigator.onLine||!cloud.session?.access_token){v27AssistantLine('assistant','Mode 4G indisponible ou session expirée. Réponse locale :\n'+v27LocalReply(question));return;}
-  btn.disabled=true;
-  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),18000);
-  try{
-    const res=await fetch(`${SUPABASE_URL}/functions/v1/serre-assistant`,{
-      method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${cloud.session.access_token}`},
-      body:JSON.stringify({question,greenhouseId:cloud.greenhouseId||'',context:v27SafeContext(question)}),signal:controller.signal
-    });
-    const result=await res.json().catch(()=>({}));
-    if(!res.ok)throw Error(result.error||`Service IA indisponible (${res.status})`);
-    v27AssistantLine('assistant',String(result.answer||'Pas de réponse reçue.').slice(0,3500));
-  }catch(error){v27AssistantLine('assistant',`${error.name==='AbortError'?'Le service a dépassé le délai.':error.message||'Service indisponible.'}\nJe peux tout de même répondre hors ligne :\n${v27LocalReply(question)}`);}
-  finally{clearTimeout(tid);if(btn.isConnected)btn.disabled=false;}
+  const input=getEl('v27AssistantQuestion');
+  if(!input)return;
+  const question=input.value.trim();
+  if(!question)return;
+  if(question.length>650){alert('Question limitée à 650 caractères.');return;}
+  v27AssistantLine('user',question);
+  input.value='';
+  try{v27AssistantLine('assistant',v29Answer(question));}
+  catch(error){console.error('Erreur du copilote local V29',error);v27AssistantLine('assistant','Une erreur locale a empêché le calcul. Les données n’ont pas été modifiées. Ferme puis rouvre l’assistant, ou essaye une question plus simple.');}
 }
 
+// ---------- V29 : COPILOTE DE SERRE, 100 % LOCAL ET EN LECTURE SEULE ----------
+// Aucun appel API, aucune écriture dans db, localStorage, IndexedDB ou Supabase.
+let v29Conversation={subject:'',topic:'',history:[],lastAnswer:''};
+function v29Text(value){return v28Normalize(value);}
+function v29Pretty(n, digits=2){return Number(n||0).toLocaleString('fr-FR',{maximumFractionDigits:digits});}
+function v29IsoDaysAgo(days){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-days);return localISODate(d);}
+function v29UserSubject(question){
+  const q=v29Text(question),words=q.split(' ');
+  const groups=[
+    {words:['laitue','laitues','salade','salades'],canonical:'laitues'},
+    {words:['persil','persils'],canonical:'persil'},
+    {words:['mizuna','mizunas'],canonical:'mizuna'},
+    {words:['cerfeuil','cerfeuils'],canonical:'cerfeuil'},
+    {words:['blette','blettes','bette','bettes'],canonical:'blettes'},
+    {words:['pak','pakchoi','pakchois'],canonical:'pak choi'},
+    {words:['kale','kales'],canonical:'kale'},
+    {words:['cresson','cressons'],canonical:'cresson'},
+    {words:['moutarde','moutardes'],canonical:'moutarde'},
+    {words:['roquette','roquettes'],canonical:'roquette'},
+    {words:['mache','maches'],canonical:'mâche'},
+    {words:['basilic','basilics'],canonical:'basilic'}
+  ];
+  // Privilégie une variété exacte avant la famille (ex. Suzanne, Shanghai).
+  const variety=(db.varieties||[])
+    .map(v=>({name:v.name||'',tokens:v29Text(v.name||'').split(' ').filter(w=>w.length>3)}))
+    .filter(v=>v.tokens.length&&v.tokens.some(w=>!['laitue','salade','commun','chou','feuille','verte','rouge'].includes(w)))
+    .sort((a,b)=>b.name.length-a.name.length)
+    .find(v=>v.tokens.filter(w=>!['laitue','salade','commun','chou','feuille','verte','rouge'].includes(w)).some(w=>words.includes(w)));
+  if(variety)return variety.name;
+  const group=groups.find(g=>g.words.some(w=>words.includes(w)));
+  if(group)return group.canonical;
+  return '';
+}
+function v29SubjectQuery(question){
+  const q=v29Text(question);
+  const detected=v29UserSubject(question);
+  if(detected){v29Conversation.subject=detected;return String(question||'');}
+  const followUp=/^(et |sinon |aussi |pour |dans |en |sur |ou |elles |ils |ceux |celles |combien dans |combien en |combien reste |ou sont elles|ou sont ils|detaille |precise )/.test(q)
+    || /\b(ces plants|ces cultures|cette variete|pour cette|les memes|les autres|celle ci|celui ci)\b/.test(q);
+  if(followUp&&v29Conversation.topic==='harvest')return 'récoltes '+question+(v29Conversation.subject?' de '+v29Conversation.subject:'');
+  if(followUp&&v29Conversation.topic==='tasks')return 'tâches '+question;
+  if(v29Conversation.subject&&followUp&&v29Conversation.topic==='inventory'){
+    const bareSystem=q.match(/^(?:et\s+)?(?:le\s+)?([sl])$/);
+    if(bareSystem)return 'combien de '+v29Conversation.subject+' dans le système '+bareSystem[1].toUpperCase();
+    return question+' '+v29Conversation.subject;
+  }
+  // Une nouvelle question autonome (« récoltes cette semaine », « inventaire total »)
+  // ne doit pas hériter par erreur de la variété mentionnée précédemment.
+  if(!followUp)v29Conversation.subject='';
+  return question;
+}
+function v29CheckAnomalies(){
+  const alerts=[], seenIds=new Set();
+  const active=(db.cultures||[]).filter(c=>c.status==='Active');
+  const varIds=new Set((db.varieties||[]).map(v=>v.id));
+  for(const c of active){
+    const alloc=allocationsOf(c),qty=Number(c.qty||0),sum=alloc.reduce((a,x)=>a+Number(x.qty||0),0);
+    const label=varietyName(c.varietyId);
+    if(seenIds.has(c.id))alerts.push('Identifiant de lot dupliqué : '+String(c.id));
+    seenIds.add(c.id);
+    if(!varIds.has(c.varietyId))alerts.push('Référence de variété introuvable pour un lot actif.');
+    if(!Number.isFinite(qty)||qty<0)alerts.push(label+' : quantité de lot invalide.');
+    if(Math.abs(qty-sum)>0.001)alerts.push(label+' : lot à '+v29Pretty(qty)+' plant(s), chambres à '+v29Pretty(sum)+'.');
+    if(qty>0&&!alloc.length)alerts.push(label+' : lot actif sans chambre affectée.');
+    const locSeen=new Set();
+    for(const a of alloc){
+      const loc=chamberCode(c.blockId,a.chamberNumber);
+      if(locSeen.has(loc))alerts.push(label+' : affectation répétée dans '+loc+'.');
+      locSeen.add(loc);
+    }
+  }
+  for(const b of db.blocks||[]){
+    for(let n=1;n<=Number(b.chambers||0);n++){
+      const s=chamberState(b.id,n);
+      if(s.over>0)alerts.push(chamberCode(b.id,n)+' : dépassement de '+v29Pretty(s.over)+' place(s).');
+    }
+  }
+  return [...new Set(alerts)];
+}
+function v29QualityReport(){
+  const alerts=v29CheckAnomalies();
+  if(!alerts.length)return 'Contrôle de cohérence : aucun écart structurel détecté dans les lots et les capacités des chambres.\nCela ne garantit pas que le comptage réel sur place soit identique. Les anciennes migrations doivent être vérifiées physiquement si un doute subsiste.';
+  return 'Contrôle de cohérence : '+alerts.length+' point(s) à vérifier.\n'
+    +alerts.slice(0,12).map((x,i)=>(i+1)+'. '+x).join('\n')
+    +(alerts.length>12?'\n… '+(alerts.length-12)+' autre(s) point(s).':'')
+    +'\nAucune correction automatique : comparer les plants réellement présents avant toute modification.';
+}
+function v29WaterReport(){
+  const rows=(db.waterReadings||[]).slice().sort((a,b)=>String(b.date||b.createdAt||'').localeCompare(String(a.date||a.createdAt||'')));
+  if(!rows.length)return 'Aucun relevé du bassin enregistré. Ajoute un relevé pH/EC depuis l’accueil pour commencer un suivi.';
+  const last=rows[0],before=rows.find((r,i)=>i>0&&(r.date!==last.date||r.id!==last.id));
+  const lines=['Bassin — dernier relevé '+(last.date?fmt(last.date):'date non indiquée')+': pH '+(last.ph??'non mesuré')+', EC '+(last.ec??'non mesurée')+' mS/cm.'];
+  if(before){
+    const dp=Number(last.ph)-Number(before.ph),de=Number(last.ec)-Number(before.ec);
+    if(last.ph!==null&&last.ph!==''&&before.ph!==null&&before.ph!==''&&Number.isFinite(dp))lines.push('Évolution du pH depuis le relevé précédent : '+(dp>0?'+':'')+v29Pretty(dp,2)+'.');
+    if(last.ec!==null&&last.ec!==''&&before.ec!==null&&before.ec!==''&&Number.isFinite(de))lines.push('Évolution de l’EC : '+(de>0?'+':'')+v29Pretty(de,2)+' mS/cm.');
+    if((Number.isFinite(dp)&&Math.abs(dp)>=0.6)||(Number.isFinite(de)&&Math.abs(de)>=0.4))lines.push('⚠ Variation notable : revérifier les mesures et le contexte avant tout ajustement.');
+  }
+  lines.push('Lecture informative seulement : le pH et l’EC ne donnent pas la composition minérale détaillée.');
+  return lines.join('\n');
+}
+function v29HarvestReport(question){
+  const q=v29Text(question);
+  const today=todayISO();
+  const months=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+  const namedMonth=months.findIndex(m=>q.split(' ').includes(m));
+  let period;
+  if(namedMonth>=0){
+    const explicitYear=q.match(/\b20\d{2}\b/),year=explicitYear?Number(explicitYear[0]):new Date().getFullYear();
+    const m=String(namedMonth+1).padStart(2,'0');
+    const nextYear=namedMonth===11?year+1:year,nextMonth=String(namedMonth===11?1:namedMonth+2).padStart(2,'0');
+    period={from:year+'-'+m+'-01',to:nextYear+'-'+nextMonth+'-01',label:'en '+months[namedMonth]+' '+year};
+  }else if(/\b(aujourd hui|ce jour)\b/.test(q))period={from:today,label:'aujourd’hui'};
+  else if(/\b(semaine derniere)\b/.test(q)){
+    const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7)-7);
+    const monday=localISODate(d);d.setDate(d.getDate()+7);
+    period={from:monday,to:localISODate(d),label:'la semaine dernière'};
+  }else if(/\b(7 derniers|sept derniers)\b/.test(q))period={from:v29IsoDaysAgo(6),label:'sur les 7 derniers jours'};
+  else if(/\b(mois dernier)\b/.test(q)){
+    const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);
+    period={from:localISODate(d).slice(0,7)+'-01',to:today.slice(0,7)+'-01',label:'le mois précédent'};
+  }else if(/\b(cette semaine|semaine)\b/.test(q)){
+    const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));
+    period={from:localISODate(d),label:'cette semaine'};
+  }else if(/\b(ce mois|du mois|mensuel)\b/.test(q))period={from:today.slice(0,7)+'-01',label:'ce mois-ci'};
+  else period={from:'',label:'dans l’historique'};
+  const subject=v29Conversation.subject;
+  const wanted=subject?v29Text(subject):'';
+  const items=(db.harvests||[]).filter(h=>{
+    if(period.from&&String(h.date||'')<period.from)return false;
+    if(period.to&&String(h.date||'')>=period.to)return false;
+    if(!wanted)return true;
+    const name=v29Text(varietyName(h.varietyId));
+    if(wanted==='laitues')return /laitue|salade/.test(name);
+    return name.includes(wanted)||wanted.split(' ').filter(w=>w.length>=5).some(w=>name.includes(w));
+  });
+  const lines=['Récoltes '+period.label+(subject?' — '+subject:'')+' : '+items.length+' enregistrement(s).'];
+  if(!items.length)return lines[0]+' Aucune récolte correspondante enregistrée.';
+  lines.push('Total par unité : '+harvestTotalsText(items)+'.');
+  const byVar=new Map();
+  for(const h of items){const name=varietyName(h.varietyId),a=byVar.get(name)||[];a.push(h);byVar.set(name,a);}
+  const ranked=[...byVar.entries()].map(([name,rows])=>({name,rows,kg:rows.reduce((sum,r)=>sum+(harvestMassKg(r)||0),0)})).sort((a,b)=>b.kg-a.kg).slice(0,7);
+  lines.push(ranked.map(x=>'• '+x.name+' : '+harvestTotalsText(x.rows)).join('\n'));
+  if(byVar.size>7)lines.push('… '+(byVar.size-7)+' autre(s) variété(s) non détaillée(s).');
+  lines.push('Poids en g/kg additionnés séparément des pièces, bottes et barquettes.');
+  return lines.join('\n');
+}
+function v29RequestReport(){
+  const requests=(db.clientRequests||[]).filter(x=>['a_confirmer','confirmee'].includes(x.status));
+  if(!requests.length)return 'Aucune demande client en cours enregistrée.';
+  const lines=['Commandes et demandes : '+requests.length+' en cours, dont '+requests.filter(x=>x.status==='confirmee').length+' confirmée(s).'];
+  for(const r of requests.slice(-7).reverse()){
+    const items=Array.isArray(r.items)?r.items:[];
+    const products=items.slice(0,5).map(i=>v29Pretty(i.qty)+' '+String(i.unit||'')+' '+String(i.product||'produit')).join(', ');
+    lines.push('• '+(r.customer||'Client non renseigné')+' — '+(r.status==='confirmee'?'confirmée':'à confirmer')+' : '+(products||'détail non renseigné'));
+  }
+  if(requests.length>7)lines.push('… '+(requests.length-7)+' autre(s) demande(s).');
+  lines.push('Attention : le nombre de plants ne prouve pas qu’un poids demandé soit récoltable. Vérifier la maturité et le poids réel avant de confirmer une livraison.');
+  return lines.join('\n');
+}
+function v29TaskReport(){
+  const today=todayISO();
+  const rows=(db.tasks||[]).filter(t=>t.status!=='done'&&!t.done).sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
+  const late=rows.filter(t=>t.date&&t.date<today),due=rows.filter(t=>t.date===today),upcoming=rows.filter(t=>!t.date||t.date>today);
+  const lines=['Tâches à suivre : '+rows.length+' ouvertes ('+late.length+' en retard, '+due.length+' aujourd’hui).'];
+  for(const t of [...late,...due,...upcoming].slice(0,8))lines.push('• '+(t.date?(fmt(t.date)+(t.date<today?' — en retard':'')+' : '):'Sans date : ')+(t.title||'Tâche sans titre'));
+  if(!rows.length)lines.push('Aucune tâche ouverte enregistrée.');
+  return lines.join('\n');
+}
+function v29OpeningSignal(){
+  const today=todayISO();
+  const overdue=(db.tasks||[]).filter(t=>t.status!=='done'&&!t.done&&t.date&&t.date<today).length;
+  const anomalies=v29CheckAnomalies().length;
+  const clients=(db.clientRequests||[]).filter(x=>x.status==='confirmee').length;
+  if(!overdue&&!anomalies&&!clients)return 'Premier contrôle : aucune tâche en retard, aucune incohérence structurelle détectée et aucune demande confirmée en cours. Tu peux lancer un bilan complet.';
+  const parts=[];
+  if(overdue)parts.push(overdue+' tâche(s) en retard');
+  if(anomalies)parts.push(anomalies+' anomalie(s) à vérifier');
+  if(clients)parts.push(clients+' commande(s) confirmée(s) à suivre');
+  return 'À surveiller selon tes données : '+parts.join(' · ')+'. Touche « Mon bilan » pour les priorités.';
+}
+function v29DailyBrief(){
+  const today=todayISO(),due=(db.tasks||[]).filter(t=>t.status!=='done'&&!t.done&&t.date===today),late=(db.tasks||[]).filter(t=>t.status!=='done'&&!t.done&&t.date&&t.date<today);
+  const confirmed=(db.clientRequests||[]).filter(x=>x.status==='confirmee');
+  const planned=(db.cultures||[]).filter(c=>c.status==='Active'&&c.harvest&&c.harvest<=today);
+  const anomalies=v29CheckAnomalies();
+  const lines=['Bilan de serre du '+fmt(today)+' — selon les données enregistrées :'];
+  lines.push('1. Travail : '+late.length+' tâche(s) en retard et '+due.length+' prévue(s) aujourd’hui.');
+  if(late.length||due.length)lines.push('   À traiter : '+[...late,...due].slice(0,3).map(t=>t.title||'Tâche').join(' ; ')+'.');
+  lines.push('2. Clients : '+confirmed.length+' demande(s) confirmée(s) à préparer ou à suivre.');
+  lines.push('3. Cultures : '+planned.length+' lot(s) dont la date prévisionnelle de récolte est atteinte ou dépassée (à examiner, pas nécessairement mûrs).');
+  lines.push('4. Fiabilité : '+anomalies.length+' incohérence(s) structurelle(s) détectée(s).');
+  const low=(db.stock||[]).filter(s=>Number(s.min)>0&&Number(s.qty)<=Number(s.min));
+  lines.push('5. Stock : '+low.length+' article(s) au seuil d’alerte enregistré.');
+  lines.push('Tu peux demander « détaille les tâches », « contrôle les anomalies », « quelles commandes ? » ou « analyse le bassin ».');
+  return lines.join('\n');
+}
+function v29MoveReport(question){
+  const norm=v29Text(question).toUpperCase();
+  const codes=[...norm.matchAll(/\b([SL])\s*0*(\d{1,2})\b/g)].map(m=>m[1]+String(Number(m[2])).padStart(2,'0'));
+  if(codes.length<2)return 'Simulation de déplacement : indique deux chambres (ex. « simule L14 vers S31 »). Je ne déplacerai aucun plant.';
+  const src=parseChamberCode(codes[0]),dest=parseChamberCode(codes[1]);
+  if(!src||!dest)return 'Une des chambres n’existe pas dans les systèmes enregistrés.';
+  if(src.blockId===dest.blockId&&src.n===dest.n)return 'La chambre de départ et d’arrivée est la même.';
+  const s=chamberState(src.blockId,src.n),d=chamberState(dest.blockId,dest.n);
+  const occ=chamberOccupants(src.blockId,src.n).filter(x=>x.culture.status==='Active');
+  const units=question.match(/\b(\d{1,3})\s*(?:plants?|unites?)\b/i),wanted=units?Number(units[1]):null;
+  const lines=['Simulation sans aucune modification : '+chamberCode(src.blockId,src.n)+' → '+chamberCode(dest.blockId,dest.n)+'.'];
+  lines.push('Départ : '+s.used+' plant(s) présents. '+(occ.length?occ.map(x=>x.allocation.qty+' '+varietyName(x.culture.varietyId)).join(', '):'Chambre vide.'));
+  lines.push('Destination : '+d.free+' place(s) libre(s) sur '+d.cap+'.');
+  if(wanted!==null){
+    lines.push('Quantité envisagée : '+wanted+' plant(s).');
+    lines.push(wanted>s.used?'⚠ Quantité supérieure à l’occupation totale de départ.':wanted>d.free?'⚠ Capacité insuffisante à l’arrivée.':'✓ Capacité totale suffisante sur la base des enregistrements.');
+  }else lines.push('Pour vérifier une quantité précise, écris « simule 6 plants de L14 vers S31 ».');
+  lines.push('Avant d’agir, vérifier l’état réel et choisir le bon lot dans l’outil de déplacement habituel.');
+  return lines.join('\n');
+}
+function v29AvailabilityReport(question){
+  const subject=v29Conversation.subject;
+  const lines=['Disponibilité commerciale '+(subject?'— '+subject+' ':'')+':'];
+  if(subject){
+    const inventory=v28InventoryAnswer('combien de '+subject+' par chambre');
+    if(inventory)lines.push(inventory.split('\n').slice(0,6).join('\n'));
+  }
+  lines.push('Les plants enregistrés ne constituent pas un stock vendu en grammes : la maturité, le poids récoltable et les commandes déjà engagées doivent être vérifiés.');
+  lines.push('Jette un œil aux récoltes passées pour établir un ordre de grandeur, sans les traiter comme un rendement garanti.');
+  return lines.join('\n');
+}
+function v29Answer(raw){
+  const original=String(raw||'').trim();
+  if(!original)return '';
+  const question=v29SubjectQuery(original),q=v29Text(question);
+  let topic='general',answer='';
+  if(/^(supprime|efface|modifie|deplace|retire|ajoute|change|enregistre|cree|valide)\b/.test(q)&&!/\b(simule|simulation)\b/.test(q)){
+    answer='Je peux analyser et préparer cette opération, mais la V29 ne modifie jamais les cultures à partir du chat. Utilise les commandes de Gestion Serre, qui demandent une confirmation et conservent l’historique.';
+    topic='safety';
+  }else if(/\b(simule|simulation|si je deplace|peux je deplacer|avant de deplacer)\b/.test(q)){
+    topic='move';answer=v29MoveReport(question);
+  }else if(/\b(anomalie|anomalies|incoherence|incoherences|controle|controler|audit|doublon|doublons|erreur|erreurs)\b/.test(q)){
+    topic='quality';answer=v29QualityReport();
+  }else if(/\b(bilan|briefing|priorite|priorites|point du jour|tour de serre|quoi faire en premier|resume de la serre)\b/.test(q)){
+    topic='briefing';answer=v29DailyBrief();
+  }else if(/\b(bassin|ph|ec|nutriment|nutrition|releves? de l eau|eau du bassin)\b/.test(q)){
+    topic='water';answer=v29WaterReport();
+  }else if(/\b(peux je livrer|peut on livrer|disponible a vendre|combien puis je vendre|peux je fournir|pret a vendre|vendre au chef)\b/.test(q)){
+    topic='availability';answer=v29AvailabilityReport(question);
+  }else if(/\b(commandes?|clients?|livraisons?|restaurant|demandes? clients?)\b/.test(q)){
+    topic='requests';answer=v29RequestReport();
+  }else if(/\b(recolte|recoltes|recolte(s)?|production|produit en kg|poids recolte|bilan de production)\b/.test(q)){
+    topic='harvest';answer=v29HarvestReport(question);
+  }else if(/\b(taches?|planning|retard|faire aujourd hui|faire demain|a faire|travail)\b/.test(q)){
+    topic='tasks';answer=v29TaskReport();
+  }else{
+    topic='inventory';
+    answer=v28InventoryAnswer(question);
+    if(answer===null){topic='legacy';answer=v27LegacyLocalReply(question);}
+  }
+  v29Conversation.topic=topic;
+  v29Conversation.lastAnswer=answer;
+  v29Conversation.history.push({question:original,topic,subject:v29Conversation.subject});
+  if(v29Conversation.history.length>16)v29Conversation.history.shift();
+  return answer;
+}
+function v29ClearChat(){
+  v29Conversation={subject:'',topic:'',history:[],lastAnswer:''};
+  const host=getEl('v27AssistantConversation');if(host)host.textContent='';
+  v27AssistantLine('assistant','Conversation réinitialisée. Je peux analyser tes données de serre sans les modifier.');
+}
+function v29ExportAnswer(){
+  if(!v29Conversation.lastAnswer){alert('Demande d’abord un bilan à exporter.');return;}
+  const blob=new Blob([v29Conversation.lastAnswer+'\n\nBilan généré localement le '+new Date().toLocaleString('fr-FR')+'.\n'],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='Gestion_Serre_bilan_V29_'+todayISO()+'.txt';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+function v29InputKey(event){if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();v27AskAssistant();}}
 
 // ---------- 14. PARTAGE & SYNCHRONISATION ----------
 const cloud={
